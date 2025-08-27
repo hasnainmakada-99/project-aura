@@ -1,5 +1,6 @@
 # app_logic.py
 import sys
+import os
 import cv2
 import dlib
 import numpy as np
@@ -10,6 +11,17 @@ from PyQt6.QtCore import Qt, QTimer, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from ui_main_window import UiMainWindow
 
+# NEW: Definitive function to handle file paths for PyInstaller
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 class AppLogic(QWidget, UiMainWindow):
     def __init__(self):
         super().__init__()
@@ -18,10 +30,13 @@ class AppLogic(QWidget, UiMainWindow):
         self.focus_counter = 0
         self.is_focused = False
 
-        # --- HYBRID DETECTOR SETUP ---
+        # --- HYBRID DETECTOR SETUP using resource_path ---
         try:
-            self.face_cascade = cv2.CascadeClassifier('./assets/haarcascade_frontalface_default.xml')
-            self.predictor = dlib.shape_predictor('./assets/shape_predictor_68_face_landmarks.dat')
+            face_cascade_path = resource_path("assets/haarcascade_frontalface_default.xml")
+            predictor_path = resource_path("assets/shape_predictor_68_face_landmarks.dat")
+            
+            self.face_cascade = cv2.CascadeClassifier(face_cascade_path)
+            self.predictor = dlib.shape_predictor(predictor_path)
             (self.lStart, self.lEnd) = (42, 48)
             (self.rStart, self.rEnd) = (36, 42)
         except Exception as e:
@@ -29,13 +44,24 @@ class AppLogic(QWidget, UiMainWindow):
             self.face_cascade = None
             self.predictor = None
 
-        # --- (The rest of __init__ is the same) ---
+        # --- Audio Player & UI Setup using resource_path ---
         self.player = QMediaPlayer()
         self.audio_output = QAudioOutput()
         self.player.setAudioOutput(self.audio_output)
-        source = QUrl.fromLocalFile('./assets/demo_sound.mp3')
+        sound_path = resource_path("assets/demo_sound.mp3")
+        source = QUrl.fromLocalFile(sound_path)
         self.player.setSource(source)
+        
+        toggle_off_path = resource_path("assets/toggle_off.png").replace('\\', '/')
+        toggle_on_path = resource_path("assets/toggle_on.png").replace('\\', '/')
+        self.aura_toggle.setStyleSheet(f"""
+            QCheckBox::indicator {{ width: 90px; height: 60px; }}
+            QCheckBox::indicator:unchecked {{ image: url({toggle_off_path}); }}
+            QCheckBox::indicator:checked {{ image: url({toggle_on_path}); }}
+            QCheckBox {{ color: white; spacing: 15px; }}
+        """)
 
+        # --- (The rest of the file is the same as the last working version) ---
         self.capture = cv2.VideoCapture(0)
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
@@ -77,7 +103,7 @@ class AppLogic(QWidget, UiMainWindow):
             sessions = AudioUtilities.GetAllSessions()
             for session in sessions:
                 volume = session._ctl.QueryInterface(ISimpleAudioVolume)
-                if session.Process and session.Process.name().lower() not in ["python.exe", "py.exe"]:
+                if session.Process and session.Process.name().lower() not in ["python.exe", "py.exe", "projectaura.exe"]:
                     volume.SetMasterVolume(level, None)
         except Exception as e:
             print(f"Error setting volume: {e}")

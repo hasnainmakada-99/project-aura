@@ -1,0 +1,6 @@
+pyqt6
+opencv-python
+dlib
+pycaw
+numpy
+scipy

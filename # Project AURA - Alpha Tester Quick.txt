@@ -1,0 +1,51 @@
+# Project AURA - Alpha Tester Quick Start Guide
+
+Hey! Thanks for helping us test this very early version of Project AURA. You are one of the first people in the world to use it, so your feedback is incredibly valuable.
+
+---
+### What is Project AURA? 🧿
+
+At its core, **Project AURA** is an intelligent audio co-pilot for gamers. It's a simple desktop app designed to solve one major problem: the "audio chaos" in competitive games where crucial sound cues, like enemy footsteps, get drowned out by loud abilities, gunfire, and music.
+
+---
+### How It Works (The Magic) ✨
+
+1.  **It Watches:** AURA uses your webcam to watch your face for signs of focus.
+2.  **It Understands:** Using a lightweight AI, it calculates your "Focus Score" in real-time based on how open your eyes are.
+3.  **It Reacts:** When your Focus Score passes a certain threshold, the app assumes you're in an intense moment and instantly lowers the volume of all other applications on your computer (like your game, Discord, or Spotify).
+4.  **It Resets:** As soon as you relax your focus, the volume of all your other apps returns to normal.
+
+---
+### Getting Started 🚀
+
+1.  The app is a single file: `ProjectAURA.exe`.
+2.  Just double-click it to run. It may take a few seconds to initialize the camera.
+3.  Make sure your face is reasonably well-lit and visible in the webcam feed.
+
+---
+### Tuning the AI (Your Controls) 🎛️
+
+The settings panel at the bottom gives you direct control over the AI's brain.
+
+* **Focus Threshold:** Think of this as the **"How Much Focus?"** slider.
+    * **Slide it LEFT** to make the AI **more sensitive**. The status will become ACTIVE more easily, even if your eyes are only slightly open.
+    * **Slide it RIGHT** to make the AI **less sensitive**. You will need to open your eyes wider to be considered "focused."
+
+* **Detection Stability:** Think of this as the **"How Long to Focus?"** slider. It controls how "twitchy" the detection is.
+    * **Slide it LEFT** to make the status change **faster**.
+    * **Slide it RIGHT** to make the status change **slower and more stable**. This is useful if you find the volume is changing too often.
+
+**Our Recommendation:** Start with both sliders in the middle and adjust from there to find what feels best for you!
+
+---
+### What We Need From You 🙏
+
+Please play a few games with it running and let us know your thoughts on:
+
+* **The Core Idea:** Is this automatic volume change actually useful in a real game?
+* **The Accuracy:** How well does the focus detection work for you? Did you have to adjust the sliders much?
+* **Bugs:** Did you run into any crashes or weird behavior?
+* **Suggestions:** Any other ideas you have for a tool like this?
+
+Thank you again for your time and expertise!
+- Hasnain

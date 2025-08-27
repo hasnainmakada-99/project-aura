@@ -8,7 +8,7 @@ __pycache__/
 # IDE specific files (VS Code)
 .vscode/
 
-# Distribution/build folders (for when we package the app)
+# Distribution/build folders
 dist/
 build/
 *.spec

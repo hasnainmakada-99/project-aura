@@ -1,45 +1,60 @@
 # Project AURA 🧿
 
-## The Intelligent Audio Co-pilot for Gamers
+### The Intelligent Audio Co-pilot for Gamers
 
-Project AURA is a desktop application that uses computer vision to understand a player's focus and intelligently manages in-game audio to provide a competitive advantage and a more immersive experience.
+Project AURA is a smart desktop application for Windows that uses your webcam to analyze your level of focus and automatically adjusts your system's audio in real-time. It's designed to provide a competitive advantage and a more immersive experience in games by making crucial audio cues, like enemy footsteps, easier to hear during chaotic moments.
 
----
 
-### ## Current Status: **Phase 2 - Prototyping** 👨‍💻
-
-This project is in the very early stages of development. The current version consists of the basic application window and UI skeleton. The core AI and computer vision features are not yet implemented.
 
 ---
+## ✨ Core Features
 
-### ## MVP Feature Set (The Blueprint)
-
-The goal for our Minimum Viable Product (MVP) is to deliver the "Focus Mode" feature. The planned features are:
-
-1.  **Simple Onboarding:** A clean, one-time setup screen for permissions.
-2.  **Automatic Focus Detection:** The core engine that activates "Focus Mode" automatically.
-3.  **Minimalist In-Game Overlay:** A simple on-screen indicator to show when AURA is active.
-4.  **"Before & After" Demo Mode:** An in-app feature to instantly demonstrate the audio effect.
-5.  **Manual Override:** A global hotkey to toggle the service on and off.
+* **Real-time Focus Detection:** Uses a hybrid OpenCV and Dlib AI model to track facial landmarks and calculate a "Focus Score" based on your Eye Aspect Ratio (EAR).
+* **Automatic Audio Ducking:** Intelligently lowers the volume of other applications (games, music, etc.) when you're focused, and restores it when you relax.
+* **Live Webcam Feed:** Provides a visual of what the AI is seeing, including the detected facial landmarks.
+* **Tunable Sensitivity:** On-screen sliders allow you to adjust the AI's sensitivity to match your specific webcam, lighting, and personal preferences.
+* **Built-in Demo:** A demo button lets you instantly hear the effect of the audio processing.
 
 ---
+## 🛠️ Technology Stack
 
-### ## Technology Stack
-
-* **Language:** Python
+* **Language:** Python 3.11
 * **UI Framework:** PyQt6
-* **Computer Vision:** OpenCV & MediaPipe (planned)
+* **Computer Vision:** OpenCV & Dlib
+* **Windows Audio Control:** pycaw
 
 ---
+## 🚀 Getting Started
 
-### ## How to Run
+Follow these instructions to get Project AURA running on your local machine.
 
-1.  **Clone the repository (once it's on GitHub):**
-    `git clone <your-repo-link>`
-2.  **Create a virtual environment:**
-    `python -m venv venv`
-    `source venv/bin/activate`  // On Windows, use `venv\Scripts\activate`
-3.  **Install dependencies:**
-    `pip install PyQt6`
-4.  **Run the application:**
-    `python main.py`
+### **1. Prerequisites**
+
+This project has dependencies that require specific build tools on Windows.
+* **Microsoft C++ Build Tools:** You must have the MSVC++ 14.0 or greater build tools. You can get them here: [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/). During installation, select the "Desktop development with C++" workload.
+* **CMake:** You must have the full CMake application installed and added to your system's PATH. You can get it here: [CMake Downloads](https://cmake.org/download/). During installation, be sure to select the option **"Add CMake to the system PATH for all users."**
+
+### **2. Installation**
+
+1.  **Clone the repository:**
+    ```
+    git clone [https://github.com/your-username/project-aura.git](https://github.com/your-username/project-aura.git)
+    cd project-aura
+    ```
+2.  **Create and activate a Python 3.11 virtual environment:**
+    ```
+    py -3.11 -m venv venv_py311
+    .\venv_py311\Scripts\activate
+    ```
+3.  **Install all the required libraries using the `requirements.txt` file:**
+    ```
+    pip install -r requirements.txt
+    ```
+
+### **3. Running the Application**
+
+With your virtual environment activated, simply run the main script:
+```
+python main.py
+```
+The application window should launch, and after a few seconds, you should see your webcam feed with the facial landmarks being tracked.
