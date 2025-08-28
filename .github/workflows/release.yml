@@ -1,0 +1,56 @@
+# .github/workflows/release.yml
+
+name: Build and Release Project AURA
+
+# This workflow runs whenever you create a new tag that starts with 'v' (e.g., v0.1.0)
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest # We must build on a Windows machine
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          architecture: 'x64'
+
+      - name: Install C++ Build Tools and CMake
+        run: |
+          echo "Installing C++ Build Tools and CMake are complex on runners."
+          echo "For this MVP, we assume the runner has them or we'd use a more complex setup."
+          echo "For now, we will proceed, but this step might need a dedicated action in the future."
+          # In a real-world scenario, you'd use actions to install these dependencies.
+          # For example, using Chocolatey:
+          # choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+          # choco install visualstudio2019buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller # Install pyinstaller in the runner
+
+      - name: Build the application with PyInstaller
+        run: pyinstaller main.spec
+
+      - name: Zip the output
+        run: |
+          $release_name = "ProjectAURA-Alpha-${{ github.ref_name }}"
+          Compress-Archive -Path dist/ProjectAURA -DestinationPath "${release_name}.zip"
+          echo "RELEASE_NAME=${release_name}" >> $env:GITHUB_ENV
+
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: "${{ env.RELEASE_NAME }}.zip"
+          name: "Project AURA ${{ github.ref_name }}"
+          body: "Alpha release of Project AURA. Download the attached .zip file to run the application."
+          prerelease: true
