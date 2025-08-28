@@ -6,11 +6,38 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets')], # This line tells it to copy the assets folder
-    hiddenimports=['pkg_resources.py2_warn', 'pycaw'],
+    datas=[
+        ('assets', 'assets'),  # Include assets folder
+        ('README.md', '.'),    # Include README for users
+        ('LICENCE', '.'),      # Include license
+        ('ENHANCED_USER_GUIDE.md', '.'),  # Include user guide
+    ],
+    hiddenimports=[
+        'pkg_resources.py2_warn', 
+        'pycaw',
+        'pycaw.pycaw',
+        'psutil',
+        'pywin32',
+        'win32api',
+        'win32gui',
+        'win32con',
+        'cv2',
+        'dlib',
+        'numpy',
+        'numpy.testing',
+        'unittest',
+        'unittest.mock',
+        'PyQt6.QtCore',
+        'PyQt6.QtWidgets',
+        'PyQt6.QtGui',
+        'app_logic',
+        'ui_main_window',
+        'camera_detector',
+        'safe_gaming_enhancer'
+    ],
     hookspath=[],
     runtime_hooks=[],
-    excludes=[],
+    excludes=['tkinter', 'matplotlib', 'test', 'IPython', 'jupyter'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

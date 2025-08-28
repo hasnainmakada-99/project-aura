@@ -1,6 +1,7 @@
-pyqt6
-opencv-python
-dlib
-pycaw
-numpy
-scipy
+pyqt6>=6.5.0
+opencv-python>=4.8.0
+dlib>=19.24.0
+pycaw>=20220416
+numpy>=1.24.0
+psutil>=5.9.0
+pywin32>=306

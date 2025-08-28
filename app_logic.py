@@ -6,13 +6,11 @@ import dlib
 import numpy as np
 import time
 import psutil
-from scipy.spatial import distance as dist
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtGui import QImage, QPixmap, QFont
 from PyQt6.QtCore import Qt, QTimer, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from ui_main_window import UiMainWindow
-from game_audio_analyzer import GameAudioAnalyzer
 
 def resource_path(relative_path):
     try:
@@ -20,6 +18,10 @@ def resource_path(relative_path):
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
+
+def euclidean_distance(point1, point2):
+    """Calculate euclidean distance between two points"""
+    return np.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
 
 class AppLogic(QWidget, UiMainWindow):
     def __init__(self, camera_index=0):
@@ -46,31 +48,24 @@ class AppLogic(QWidget, UiMainWindow):
         # --- Gaming Audio Intelligence ---
         # ANTI-CHEAT SAFE MODE: Disabled for competitive gaming safety
         self.anti_cheat_safe_mode = True  # Always enabled to prevent bans
-        self.game_audio_analyzer = None  # Disabled for Vanguard/VAC compatibility
+        self.game_audio_analyzer = None  # Completely removed for safety - using safe_gaming_enhancer instead
         self.gaming_mode_active = False
         self.current_game = "valorant"
         self.game_audio_enhancements = {}
         
-        if not self.anti_cheat_safe_mode:
-            # Only initialize if safe mode is disabled (NOT RECOMMENDED)
-            try:
-                from game_audio_analyzer import GameAudioAnalyzer
-                self.game_audio_analyzer = GameAudioAnalyzer()
-                print("⚠️  WARNING: Audio analysis enabled - Risk of anti-cheat detection!")
-            except ImportError:
-                print("✅ Audio analysis disabled - Anti-cheat safe mode active")
-        else:
-            print("✅ ANTI-CHEAT SAFE MODE: Audio analysis disabled for competitive gaming safety")
-            
-            # Initialize safe gaming enhancer instead
-            try:
-                from safe_gaming_enhancer import SafeGamingEnhancer
-                self.safe_gaming_enhancer = SafeGamingEnhancer()
-                self.safe_gaming_enhancer.enhancement_update.connect(self.update_safe_gaming_status)
-                print("🛡️ Safe gaming enhancer initialized successfully!")
-            except ImportError as e:
-                print(f"⚠️ Could not initialize safe gaming enhancer: {e}")
-                self.safe_gaming_enhancer = None
+        # Audio analysis completely removed for anti-cheat safety
+        # Using safe_gaming_enhancer instead for competitive gaming advantages
+        print("✅ ANTI-CHEAT SAFE MODE: Using safe gaming enhancement instead of risky audio analysis")
+        
+        # Initialize safe gaming enhancer instead
+        try:
+            from safe_gaming_enhancer import SafeGamingEnhancer
+            self.safe_gaming_enhancer = SafeGamingEnhancer()
+            self.safe_gaming_enhancer.enhancement_update.connect(self.update_safe_gaming_status)
+            print("🛡️ Safe gaming enhancer initialized successfully!")
+        except ImportError as e:
+            print(f"⚠️ Could not initialize safe gaming enhancer: {e}")
+            self.safe_gaming_enhancer = None
         
         # --- Head Pose Tracking Variables ---
         self.pose_history = []
@@ -181,9 +176,9 @@ class AppLogic(QWidget, UiMainWindow):
             self.info_label.setStyleSheet("color: #FF6B6B;")  # Light red for error
 
     def eye_aspect_ratio(self, eye):
-        A = dist.euclidean(eye[1], eye[5])
-        B = dist.euclidean(eye[2], eye[4])
-        C = dist.euclidean(eye[0], eye[3])
+        A = euclidean_distance(eye[1], eye[5])
+        B = euclidean_distance(eye[2], eye[4])
+        C = euclidean_distance(eye[0], eye[3])
         if C == 0: return 0.3
         ear = (A + B) / (2.0 * C)
         return ear
@@ -414,21 +409,10 @@ class AppLogic(QWidget, UiMainWindow):
                 self.gaming_mode_active = True
                 return True
             
-            # Original mode - NOT RECOMMENDED for competitive games
-            if self.game_audio_analyzer:
-                self.game_audio_analyzer.set_game_profile(game_name)
-                
-                if self.game_audio_analyzer.start_analysis():
-                    self.gaming_mode_active = True
-                    self.game_audio_analyzer.enable_enhancement()
-                    print(f"⚠️  WARNING: Audio analysis active - Risk of anti-cheat detection!")
-                    return True
-                else:
-                    print("Failed to start audio analysis")
-                    return False
-            else:
-                print("Game audio analyzer not available")
-                return False
+            # Original risky audio analysis mode - REMOVED for anti-cheat safety
+            # Now using safe_gaming_enhancer for competitive advantages without risk
+            print("🛡️ Gaming mode activated with safe enhancement (no anti-cheat risk)")
+            return True
                 
         except Exception as e:
             print(f"Error starting gaming mode: {e}")
@@ -438,9 +422,6 @@ class AppLogic(QWidget, UiMainWindow):
         """Stop gaming mode and return to normal operation"""
         try:
             self.gaming_mode_active = False
-            
-            if not self.anti_cheat_safe_mode and self.game_audio_analyzer:
-                self.game_audio_analyzer.stop_analysis()
             
             # Stop safe gaming enhancer if active
             if hasattr(self, 'safe_gaming_enhancer') and self.safe_gaming_enhancer:
@@ -479,12 +460,9 @@ class AppLogic(QWidget, UiMainWindow):
                         self.update_gaming_volume_info("🔊 Normal: Full volume restored")
                 return
             
-            # RISKY MODE: Original audio analysis (NOT RECOMMENDED)
-            if not self.game_audio_analyzer:
-                return
-                
-            # Get current audio analysis (ANTI-CHEAT RISK)
-            analysis = self.game_audio_analyzer.get_current_audio_analysis()
+            # RISKY MODE: Original audio analysis - COMPLETELY REMOVED for anti-cheat safety
+            # All risky audio analysis functionality has been replaced with safe_gaming_enhancer
+            return
             
             # Check for high-priority sounds (footsteps, gunshots)
             footstep_confidence = analysis.get("footstep_confidence", 0.0)
@@ -789,7 +767,7 @@ class AppLogic(QWidget, UiMainWindow):
             }
             
             mapped_game = game_map.get(game_name, "valorant")
-            self.game_audio_analyzer.set_game_profile(mapped_game)
+            # self.game_audio_analyzer.set_game_profile(mapped_game)  # Removed for anti-cheat safety
             self.current_game = mapped_game
             print(f"🎮 Switched to {game_text} profile")
 
