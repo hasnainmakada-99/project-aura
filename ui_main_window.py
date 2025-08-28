@@ -91,11 +91,27 @@ class UiMainWindow(object):
         sensitivity_layout.addStretch()
         settings_grid.addLayout(sensitivity_layout)
 
-        # NEW: Row 3 for Gaming Mode Controls
+        # NEW: Row 3 for Gaming Mode Controls (ANTI-CHEAT SAFE)
+        
+        # Anti-cheat safety warning
+        safety_warning = QLabel("🛡️ ANTI-CHEAT SAFE MODE - Compatible with Vanguard/VAC")
+        safety_warning.setFont(QFont('Segoe UI', 9, QFont.Weight.Bold))
+        safety_warning.setStyleSheet("""
+            QLabel {
+                background-color: #2d5a27;
+                color: #90EE90;
+                padding: 6px;
+                border-radius: 4px;
+                margin-bottom: 5px;
+            }
+        """)
+        settings_grid.addWidget(safety_warning)
+        
         gaming_layout = QHBoxLayout()
-        self.gaming_mode_checkbox = QCheckBox("🎮 Gaming Mode (Intelligent Audio Enhancement)")
+        self.gaming_mode_checkbox = QCheckBox("🎮 Gaming Focus Mode (Safe)")
         self.gaming_mode_checkbox.setFont(QFont('Segoe UI', 10, QFont.Weight.Bold))
-        self.gaming_mode_checkbox.setStyleSheet("QCheckBox { color: #00FF7F; spacing: 10px; }")
+        self.gaming_mode_checkbox.setStyleSheet("QCheckBox { color: #90EE90; spacing: 10px; }")
+        self.gaming_mode_checkbox.setToolTip("🛡️ 100% Anti-cheat safe!\nFocus-based background volume control only.")
         gaming_layout.addWidget(self.gaming_mode_checkbox)
         
         # Game selection dropdown

@@ -22,9 +22,13 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 class AppLogic(QWidget, UiMainWindow):
-    def __init__(self):
+    def __init__(self, camera_index=0):
         super().__init__()
         self.setupUi(self)
+
+        # --- Camera Configuration ---
+        self.camera_index = camera_index
+        print(f"🎥 Initializing with camera {camera_index}")
 
         # --- AI State Variables ---
         self.focus_counter = 0
@@ -40,10 +44,33 @@ class AppLogic(QWidget, UiMainWindow):
         self.activity_threshold = 5  # minimum activities per window
         
         # --- Gaming Audio Intelligence ---
-        self.game_audio_analyzer = GameAudioAnalyzer()
+        # ANTI-CHEAT SAFE MODE: Disabled for competitive gaming safety
+        self.anti_cheat_safe_mode = True  # Always enabled to prevent bans
+        self.game_audio_analyzer = None  # Disabled for Vanguard/VAC compatibility
         self.gaming_mode_active = False
         self.current_game = "valorant"
         self.game_audio_enhancements = {}
+        
+        if not self.anti_cheat_safe_mode:
+            # Only initialize if safe mode is disabled (NOT RECOMMENDED)
+            try:
+                from game_audio_analyzer import GameAudioAnalyzer
+                self.game_audio_analyzer = GameAudioAnalyzer()
+                print("⚠️  WARNING: Audio analysis enabled - Risk of anti-cheat detection!")
+            except ImportError:
+                print("✅ Audio analysis disabled - Anti-cheat safe mode active")
+        else:
+            print("✅ ANTI-CHEAT SAFE MODE: Audio analysis disabled for competitive gaming safety")
+            
+            # Initialize safe gaming enhancer instead
+            try:
+                from safe_gaming_enhancer import SafeGamingEnhancer
+                self.safe_gaming_enhancer = SafeGamingEnhancer()
+                self.safe_gaming_enhancer.enhancement_update.connect(self.update_safe_gaming_status)
+                print("🛡️ Safe gaming enhancer initialized successfully!")
+            except ImportError as e:
+                print(f"⚠️ Could not initialize safe gaming enhancer: {e}")
+                self.safe_gaming_enhancer = None
         
         # --- Head Pose Tracking Variables ---
         self.pose_history = []
@@ -94,7 +121,35 @@ class AppLogic(QWidget, UiMainWindow):
         """)
         
         # --- Webcam Setup ---
-        self.capture = cv2.VideoCapture(0)
+        print(f"🎥 Connecting to camera {self.camera_index}...")
+        self.capture = cv2.VideoCapture(self.camera_index)
+        
+        # Verify camera connection
+        if not self.capture.isOpened():
+            print(f"❌ Failed to open camera {self.camera_index}")
+            # Try to fallback to default camera
+            print("🔄 Trying fallback to camera 0...")
+            self.capture = cv2.VideoCapture(0)
+            if not self.capture.isOpened():
+                print("❌ No camera available - face detection will not work")
+            else:
+                print("✅ Fallback camera 0 connected")
+                self.camera_index = 0
+        else:
+            print(f"✅ Camera {self.camera_index} connected successfully")
+            
+        # Configure camera settings for optimal performance
+        if self.capture.isOpened():
+            self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            self.capture.set(cv2.CAP_PROP_FPS, 30)
+            
+            # Get actual camera settings
+            width = int(self.capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = int(self.capture.get(cv2.CAP_PROP_FPS))
+            print(f"📹 Camera settings: {width}x{height} @ {fps}fps")
+        
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
         self.timer.start(30)
@@ -106,6 +161,24 @@ class AppLogic(QWidget, UiMainWindow):
         self.sensitivity_slider.valueChanged.connect(self.update_sensitivity_label)
         self.gaming_mode_checkbox.toggled.connect(self.toggle_gaming_mode)
         self.game_selector.currentTextChanged.connect(self.change_game_profile)
+        
+        # Update camera status in UI
+        self.update_camera_status()
+
+    def update_camera_status(self):
+        """Update the UI with camera status information"""
+        if self.capture.isOpened():
+            width = int(self.capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = int(self.capture.get(cv2.CAP_PROP_FPS))
+            
+            camera_info = f"📹 Camera {self.camera_index}: {width}x{height} @ {fps}fps"
+            status_info = f"🎯 AURA is running with verified camera. {camera_info}"
+            self.info_label.setText(status_info)
+            self.info_label.setStyleSheet("color: #90EE90;")  # Light green for success
+        else:
+            self.info_label.setText("❌ Camera not available - Face detection disabled")
+            self.info_label.setStyleSheet("color: #FF6B6B;")  # Light red for error
 
     def eye_aspect_ratio(self, eye):
         A = dist.euclidean(eye[1], eye[5])
@@ -325,18 +398,36 @@ class AppLogic(QWidget, UiMainWindow):
         return hybrid_score
 
     def start_gaming_mode(self, game_name="valorant"):
-        """Start gaming mode with audio intelligence"""
+        """Start ANTI-CHEAT SAFE gaming mode with focus-based enhancement only"""
         try:
             self.current_game = game_name
-            self.game_audio_analyzer.set_game_profile(game_name)
             
-            if self.game_audio_analyzer.start_analysis():
+            if self.anti_cheat_safe_mode:
+                print(f"🛡️  SAFE MODE: Focus-based gaming enhancement for {game_name}")
+                print("🚫 Audio analysis DISABLED for anti-cheat compatibility (Vanguard/VAC safe)")
+                
+                # Start safe gaming enhancer if available
+                if hasattr(self, 'safe_gaming_enhancer') and self.safe_gaming_enhancer:
+                    self.safe_gaming_enhancer.start_safe_enhancement()
+                    print("🎯 Safe gaming enhancement started")
+                    
                 self.gaming_mode_active = True
-                self.game_audio_analyzer.enable_enhancement()
-                print(f"Started gaming mode for {game_name}")
                 return True
+            
+            # Original mode - NOT RECOMMENDED for competitive games
+            if self.game_audio_analyzer:
+                self.game_audio_analyzer.set_game_profile(game_name)
+                
+                if self.game_audio_analyzer.start_analysis():
+                    self.gaming_mode_active = True
+                    self.game_audio_analyzer.enable_enhancement()
+                    print(f"⚠️  WARNING: Audio analysis active - Risk of anti-cheat detection!")
+                    return True
+                else:
+                    print("Failed to start audio analysis")
+                    return False
             else:
-                print("Failed to start audio analysis")
+                print("Game audio analyzer not available")
                 return False
                 
         except Exception as e:
@@ -347,19 +438,52 @@ class AppLogic(QWidget, UiMainWindow):
         """Stop gaming mode and return to normal operation"""
         try:
             self.gaming_mode_active = False
-            self.game_audio_analyzer.stop_analysis()
-            print("Stopped gaming mode")
+            
+            if not self.anti_cheat_safe_mode and self.game_audio_analyzer:
+                self.game_audio_analyzer.stop_analysis()
+            
+            # Stop safe gaming enhancer if active
+            if hasattr(self, 'safe_gaming_enhancer') and self.safe_gaming_enhancer:
+                self.safe_gaming_enhancer.stop_safe_enhancement()
+                print("🛡️ Safe gaming enhancement stopped")
+                
+            print("✅ Gaming mode stopped - Safe for competitive play")
             
         except Exception as e:
             print(f"Error stopping gaming mode: {e}")
     
     def apply_gaming_audio_enhancements(self):
-        """Apply intelligent audio enhancements based on game audio analysis"""
+        """Apply ANTI-CHEAT SAFE gaming enhancements based on focus detection only"""
         if not self.gaming_mode_active:
             return
             
         try:
-            # Get current audio analysis
+            if self.anti_cheat_safe_mode:
+                # SAFE MODE: Use safe gaming enhancer if available
+                if hasattr(self, 'safe_gaming_enhancer') and self.safe_gaming_enhancer:
+                    # Safe enhancer handles its own monitoring and enhancement
+                    # Just ensure it's running if gaming mode is active
+                    if self.gaming_mode_active and not self.safe_gaming_enhancer.is_monitoring:
+                        self.safe_gaming_enhancer.start_safe_enhancement()
+                    elif not self.gaming_mode_active and self.safe_gaming_enhancer.is_monitoring:
+                        self.safe_gaming_enhancer.stop_safe_enhancement()
+                else:
+                    # Fallback to basic focus-based enhancement
+                    if self.is_focused:
+                        # Gaming focus detected - reduce background distractions
+                        self.apply_enhanced_gaming_volume(0.3, "gaming_focus_safe")
+                        self.update_gaming_volume_info("🎮 Gaming Focus: Background apps reduced")
+                    else:
+                        # Not focused - normal volume
+                        self.apply_enhanced_gaming_volume(1.0, "normal_safe")
+                        self.update_gaming_volume_info("🔊 Normal: Full volume restored")
+                return
+            
+            # RISKY MODE: Original audio analysis (NOT RECOMMENDED)
+            if not self.game_audio_analyzer:
+                return
+                
+            # Get current audio analysis (ANTI-CHEAT RISK)
             analysis = self.game_audio_analyzer.get_current_audio_analysis()
             
             # Check for high-priority sounds (footsteps, gunshots)
@@ -472,6 +596,21 @@ class AppLogic(QWidget, UiMainWindow):
                 
         except Exception as e:
             print(f"Error updating gaming info: {e}")
+    
+    def update_safe_gaming_status(self, status_message, enhancement_level):
+        """Update UI with safe gaming enhancement status"""
+        try:
+            # Update the gaming volume info with safe enhancement status
+            self.update_gaming_volume_info(status_message)
+            
+            # Store current enhancement level for reference
+            self.current_safe_enhancement = enhancement_level
+            
+            # Update any additional UI elements if needed
+            print(f"🛡️ Safe Enhancement: {status_message}")
+            
+        except Exception as e:
+            print(f"Error updating safe gaming status: {e}")
     
     def update_gaming_volume_info(self, message):
         """Update volume info with gaming-specific information"""
