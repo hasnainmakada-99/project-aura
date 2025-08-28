@@ -11,15 +11,11 @@ from PyQt6.QtCore import Qt, QTimer, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from ui_main_window import UiMainWindow
 
-# NEW: Definitive function to handle file paths for PyInstaller
 def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
         base_path = os.path.abspath(".")
-
     return os.path.join(base_path, relative_path)
 
 class AppLogic(QWidget, UiMainWindow):
@@ -30,21 +26,28 @@ class AppLogic(QWidget, UiMainWindow):
         self.focus_counter = 0
         self.is_focused = False
 
-        # --- HYBRID DETECTOR SETUP using resource_path ---
+        # --- Dlib & Head Pose Setup ---
         try:
-            face_cascade_path = resource_path("assets/haarcascade_frontalface_default.xml")
             predictor_path = resource_path("assets/shape_predictor_68_face_landmarks.dat")
-            
-            self.face_cascade = cv2.CascadeClassifier(face_cascade_path)
+            self.detector = dlib.get_frontal_face_detector()
             self.predictor = dlib.shape_predictor(predictor_path)
             (self.lStart, self.lEnd) = (42, 48)
             (self.rStart, self.rEnd) = (36, 42)
         except Exception as e:
             print(f"CRITICAL ERROR loading models: {e}")
-            self.face_cascade = None
             self.predictor = None
 
-        # --- Audio Player & UI Setup using resource_path ---
+        # --- 3D Face Model for Head Pose ---
+        self.model_points = np.array([
+            (0.0, 0.0, 0.0),             # Nose tip
+            (0.0, -330.0, -65.0),        # Chin
+            (-225.0, 170.0, -135.0),     # Left eye left corner
+            (225.0, 170.0, -135.0),      # Right eye right corner
+            (-150.0, -150.0, -125.0),    # Left Mouth corner
+            (150.0, -150.0, -125.0)      # Right mouth corner
+        ])
+
+        # --- (The rest of __init__ is the same) ---
         self.player = QMediaPlayer()
         self.audio_output = QAudioOutput()
         self.player.setAudioOutput(self.audio_output)
@@ -60,8 +63,7 @@ class AppLogic(QWidget, UiMainWindow):
             QCheckBox::indicator:checked {{ image: url({toggle_on_path}); }}
             QCheckBox {{ color: white; spacing: 15px; }}
         """)
-
-        # --- (The rest of the file is the same as the last working version) ---
+        
         self.capture = cv2.VideoCapture(0)
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
@@ -72,6 +74,7 @@ class AppLogic(QWidget, UiMainWindow):
         self.threshold_slider.valueChanged.connect(self.update_threshold_label)
         self.sensitivity_slider.valueChanged.connect(self.update_sensitivity_label)
 
+    # ... (helper functions eye_aspect_ratio, manual_aura_toggle, set_system_volume, play_demo_sound, and slider label updates are the same)
     def eye_aspect_ratio(self, eye):
         A = dist.euclidean(eye[1], eye[5])
         B = dist.euclidean(eye[2], eye[4])
@@ -80,8 +83,27 @@ class AppLogic(QWidget, UiMainWindow):
         ear = (A + B) / (2.0 * C)
         return ear
 
-    def manual_aura_toggle(self, checked):
-        pass
+    def manual_aura_toggle(self, checked): pass
+
+    def set_system_volume(self, level):
+        try:
+            from pycaw.pycaw import AudioUtilities, ISimpleAudioVolume
+            sessions = AudioUtilities.GetAllSessions()
+            for session in sessions:
+                volume = session._ctl.QueryInterface(ISimpleAudioVolume)
+                if session.Process and session.Process.name().lower() not in ["python.exe", "py.exe", "projectaura.exe"]:
+                    volume.SetMasterVolume(level, None)
+        except Exception as e:
+            print(f"Error setting volume: {e}")
+            
+    def play_demo_sound(self):
+        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+            self.player.setPosition(0)
+        else:
+            self.player.play()
+    
+    def update_threshold_label(self, value): self.threshold_label.setText(f"Focus Threshold ({value / 100.0:.2f}):")
+    def update_sensitivity_label(self, value): self.sensitivity_label.setText(f"Detection Stability ({value} frames):")
 
     def set_aura_status(self, is_active):
         if is_active != self.is_focused:
@@ -97,46 +119,19 @@ class AppLogic(QWidget, UiMainWindow):
                 if self.aura_toggle.isChecked(): self.aura_toggle.setChecked(False)
                 self.set_system_volume(1.0)
 
-    def set_system_volume(self, level):
-        try:
-            from pycaw.pycaw import AudioUtilities, ISimpleAudioVolume
-            sessions = AudioUtilities.GetAllSessions()
-            for session in sessions:
-                volume = session._ctl.QueryInterface(ISimpleAudioVolume)
-                if session.Process and session.Process.name().lower() not in ["python.exe", "py.exe", "projectaura.exe"]:
-                    volume.SetMasterVolume(level, None)
-        except Exception as e:
-            print(f"Error setting volume: {e}")
-
-    def play_demo_sound(self):
-        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
-            self.player.setPosition(0)
-        else:
-            self.player.play()
-    
-    def update_threshold_label(self, value):
-        self.threshold_label.setText(f"Focus Threshold ({value / 100.0:.2f}):")
-        
-    def update_sensitivity_label(self, value):
-        self.sensitivity_label.setText(f"Detection Stability ({value} frames):")
-
     def update_frame(self):
         ret, frame = self.capture.read()
         if ret:
             frame = cv2.flip(frame, 1)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            size = gray.shape
             
-            if self.face_cascade and self.predictor: 
-                ear_threshold = self.threshold_slider.value() / 100.0
-                ear_consec_frames = self.sensitivity_slider.value()
-
-                faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
+            if self.predictor: 
+                faces = self.detector(gray, 0)
                 
                 if len(faces) > 0:
-                    (x, y, w, h) = faces[0]
-                    dlib_rect = dlib.rectangle(int(x), int(y), int(x + w), int(y + h))
-                    
-                    shape = self.predictor(gray, dlib_rect)
+                    face = faces[0]
+                    shape = self.predictor(gray, face)
                     shape = np.array([(shape.part(i).x, shape.part(i).y) for i in range(68)])
                     
                     leftEye = shape[self.lStart:self.lEnd]
@@ -146,7 +141,44 @@ class AppLogic(QWidget, UiMainWindow):
                     rightEAR = self.eye_aspect_ratio(rightEye)
                     ear = (leftEAR + rightEAR) / 2.0
                     
-                    if ear > ear_threshold:
+                    # --- NEW HEAD POSE LOGIC ---
+                    image_points = np.array([
+                        (shape[30][0], shape[30][1]),     # Nose tip
+                        (shape[8][0], shape[8][1]),       # Chin
+                        (shape[45][0], shape[45][1]),     # Left eye left corner
+                        (shape[36][0], shape[36][1]),     # Right eye right corner
+                        (shape[54][0], shape[54][1]),     # Left Mouth corner
+                        (shape[48][0], shape[48][1])      # Right mouth corner
+                    ], dtype="double")
+                    
+                    focal_length = size[1]
+                    center = (size[1]/2, size[0]/2)
+                    camera_matrix = np.array(
+                        [[focal_length, 0, center[0]],
+                        [0, focal_length, center[1]],
+                        [0, 0, 1]], dtype = "double"
+                    )
+                    
+                    dist_coeffs = np.zeros((4,1)) # Assuming no lens distortion
+                    (success, rotation_vector, translation_vector) = cv2.solvePnP(self.model_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE)
+                    
+                    # Project a 3D point (0, 0, 1000.0) onto the image plane.
+                    (nose_end_point2D, jacobian) = cv2.projectPoints(np.array([(0.0, 0.0, 1000.0)]), rotation_vector, translation_vector, camera_matrix, dist_coeffs)
+                    
+                    # Get head pose angles
+                    rmat, _ = cv2.Rodrigues(rotation_vector)
+                    angles, _, _, _, _, _ = cv2.RQDecomp3x3(rmat)
+                    yaw = angles[1]
+
+                    # Display angles on the UI
+                    self.info_label.setText(f"Head Angle (Yaw): {yaw:.2f}°")
+
+                    # --- UPDATED FOCUS CONDITION ---
+                    ear_threshold = self.threshold_slider.value() / 100.0
+                    ear_consec_frames = self.sensitivity_slider.value()
+
+                    # Only consider focused if eyes are open AND head is mostly straight
+                    if ear > ear_threshold and abs(yaw) < 25:
                         self.focus_counter += 1
                         if self.focus_counter >= ear_consec_frames:
                             self.set_aura_status(True)
@@ -154,11 +186,15 @@ class AppLogic(QWidget, UiMainWindow):
                         self.focus_counter = 0
                         self.set_aura_status(False)
                     
-                    for (sx, sy) in shape:
-                        cv2.circle(frame, (sx, sy), 2, (0, 255, 0), -1)
+                    # Draw a line showing head direction
+                    p1 = ( int(image_points[0][0]), int(image_points[0][1]))
+                    p2 = ( int(nose_end_point2D[0][0][0]), int(nose_end_point2D[0][0][1]))
+                    cv2.line(frame, p1, p2, (255,0,0), 2)
+
                 else:
                     self.focus_counter = 0
                     self.set_aura_status(False)
+                    self.info_label.setText("No face detected.")
 
             display_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             h, w, ch = display_image.shape
