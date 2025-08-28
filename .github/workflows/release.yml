@@ -1,10 +1,11 @@
 name: Build and Release Project AURA
 
-# Trigger on pushes to main branch and manual dispatch
+# Trigger on version tags and manual dispatch
 on:
   push:
-    branches:
-      - 'main'
+    tags:
+      - 'v*'
+      - '*-build-*'
   workflow_dispatch:
     inputs:
       release_type:
@@ -44,16 +45,28 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install system dependencies
-        run: |
-          # Install Visual C++ Redistributable (needed for dlib)
-          choco install vcredist2019 -y
-          
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r requirements.txt
-          pip install pyinstaller
+          
+          # Install dependencies with Windows-specific optimizations
+          pip install --only-binary=all --upgrade pip
+          
+          # Install core dependencies first
+          pip install numpy>=1.26.0
+          pip install opencv-python>=4.8.0
+          pip install PyQt6>=6.5.0
+          pip install psutil>=5.9.0
+          
+          # Install dlib with pre-compiled wheel
+          pip install dlib>=19.24.0
+          
+          # Install audio dependencies
+          pip install pycaw>=20230407
+          pip install pywin32>=306
+          
+          # Install build tools
+          pip install pyinstaller>=6.0.0
 
       - name: Verify installation
         run: |
@@ -182,6 +195,7 @@ jobs:
           files: "${{ env.ZIP_NAME }}.zip"
           name: "Project AURA - ${{ env.RELEASE_TYPE }} Build #${{ env.BUILD_NUMBER }}"
           tag_name: "${{ env.RELEASE_TYPE }}-build-${{ env.BUILD_NUMBER }}"
+          generate_release_notes: true
           body: |
             # 🚀 Project AURA - ${{ env.RELEASE_TYPE }} Release
             
