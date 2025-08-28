@@ -11,4 +11,4 @@ __pycache__/
 # Distribution/build folders
 dist/
 build/
-*.spec
+# *.spec
