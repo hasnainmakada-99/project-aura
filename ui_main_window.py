@@ -1,16 +1,17 @@
 # ui_main_window.py
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QCheckBox, QComboBox, QFrame, QSlider
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QCheckBox, QLineEdit, QFrame, QSlider
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 
 class UiMainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setWindowTitle('Project AURA')
-        MainWindow.setGeometry(300, 300, 800, 600)
+        MainWindow.setGeometry(300, 300, 800, 650) # Made window slightly taller
 
         main_layout = QVBoxLayout()
         main_layout.setSpacing(15)
 
+        # (The top and middle sections are the same)
         # --- TOP SECTION: STATUS ---
         status_layout = QHBoxLayout()
         self.webcam_feed = QLabel('Webcam not found.')
@@ -63,8 +64,9 @@ class UiMainWindow(object):
         settings_grid = QVBoxLayout()
         settings_grid.setContentsMargins(20, 10, 20, 20)
         
+        # Row 1 & 2: Enhanced Sliders with better labels
         threshold_layout = QHBoxLayout()
-        self.threshold_label = QLabel("Focus Threshold (0.25):")
+        self.threshold_label = QLabel("Eye Openness Threshold (0.25):")
         self.threshold_label.setFont(QFont('Segoe UI', 10))
         self.threshold_label.setStyleSheet("color: #CCC;")
         self.threshold_slider = QSlider(Qt.Orientation.Horizontal)
@@ -77,7 +79,7 @@ class UiMainWindow(object):
         settings_grid.addLayout(threshold_layout)
         
         sensitivity_layout = QHBoxLayout()
-        self.sensitivity_label = QLabel("Detection Stability (15 frames):")
+        self.sensitivity_label = QLabel("Focus Sensitivity - High=More Sensitive (15):")
         self.sensitivity_label.setFont(QFont('Segoe UI', 10))
         self.sensitivity_label.setStyleSheet("color: #CCC;")
         self.sensitivity_slider = QSlider(Qt.Orientation.Horizontal)
@@ -89,13 +91,74 @@ class UiMainWindow(object):
         sensitivity_layout.addStretch()
         settings_grid.addLayout(sensitivity_layout)
 
-        # RE-ADDED THE HELP LABEL
-        self.help_label = QLabel("Tip: Lower 'Focus Threshold' if it's too hard to activate. Increase 'Detection Stability' if the status flickers too much.")
-        self.help_label.setFont(QFont('Segoe UI', 8))
-        self.help_label.setStyleSheet("color: #888;")
-        self.help_label.setWordWrap(True)
-        settings_grid.addWidget(self.help_label)
+        # NEW: Row 3 for Gaming Mode Controls
+        gaming_layout = QHBoxLayout()
+        self.gaming_mode_checkbox = QCheckBox("🎮 Gaming Mode (Intelligent Audio Enhancement)")
+        self.gaming_mode_checkbox.setFont(QFont('Segoe UI', 10, QFont.Weight.Bold))
+        self.gaming_mode_checkbox.setStyleSheet("QCheckBox { color: #00FF7F; spacing: 10px; }")
+        gaming_layout.addWidget(self.gaming_mode_checkbox)
+        
+        # Game selection dropdown
+        from PyQt6.QtWidgets import QComboBox
+        self.game_selector = QComboBox()
+        self.game_selector.addItems(["Valorant", "CS2", "Apex Legends", "General FPS"])
+        self.game_selector.setFont(QFont('Segoe UI', 9))
+        self.game_selector.setStyleSheet("""
+            QComboBox {
+                color: white;
+                background-color: #3C3C3C;
+                border: 1px solid #555;
+                border-radius: 3px;
+                padding: 3px;
+                min-width: 100px;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+            QComboBox::down-arrow {
+                width: 12px;
+                height: 12px;
+            }
+        """)
+        gaming_layout.addWidget(self.game_selector)
+        gaming_layout.addStretch()
+        settings_grid.addLayout(gaming_layout)
 
+        # NEW: Row 4 for Multi-Monitor Mode
+        multimonitor_layout = QHBoxLayout()
+        self.multimonitor_checkbox = QCheckBox("Multi-Monitor Mode (Use screen activity when face not detected)")
+        self.multimonitor_checkbox.setFont(QFont('Segoe UI', 10))
+        self.multimonitor_checkbox.setStyleSheet("QCheckBox { color: #CCC; spacing: 10px; }")
+        self.multimonitor_checkbox.setChecked(True)  # Default enabled
+        multimonitor_layout.addWidget(self.multimonitor_checkbox)
+        multimonitor_layout.addStretch()
+        settings_grid.addLayout(multimonitor_layout)
+
+        # NEW: Row 5 for Mute List with improved styling
+        mute_list_layout = QHBoxLayout()
+        mute_label = QLabel("Apps to Control (e.g., spotify.exe,discord.exe,chrome.exe):")
+        mute_label.setFont(QFont('Segoe UI', 10))
+        mute_label.setStyleSheet("color: #CCC;")
+        self.mute_list_input = QLineEdit()
+        self.mute_list_input.setFont(QFont('Segoe UI', 10))
+        self.mute_list_input.setStyleSheet("""
+            QLineEdit { 
+                color: white; 
+                border: 1px solid #555; 
+                border-radius: 3px; 
+                padding: 5px; 
+                background-color: #3C3C3C; 
+            }
+            QLineEdit:focus {
+                border: 1px solid #007BFF;
+            }
+        """)
+        self.mute_list_input.setPlaceholderText("Enter application names separated by commas...")
+        # Set default apps that are commonly running (gaming-focused)
+        self.mute_list_input.setText("spotify.exe,discord.exe,chrome.exe,firefox.exe,vlc.exe,obs64.exe")
+        mute_list_layout.addWidget(mute_label)
+        mute_list_layout.addWidget(self.mute_list_input)
+        settings_grid.addLayout(mute_list_layout)
 
         main_layout.addLayout(settings_grid)
 
