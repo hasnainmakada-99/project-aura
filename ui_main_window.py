@@ -33,6 +33,32 @@ class UiMainWindow(object):
         
         main_layout.addLayout(status_layout)
 
+        # --- EMOTION DETECTION SECTION ---
+        emotion_frame = QFrame()
+        emotion_frame.setStyleSheet("background-color: #2A2A2A; border: 1px solid #444; border-radius: 5px; padding: 10px;")
+        emotion_layout = QVBoxLayout()
+        
+        emotion_title = QLabel('🧠 EMOTION & BEHAVIOR ANALYSIS')
+        emotion_title.setFont(QFont('Segoe UI', 12, QFont.Weight.Bold))
+        emotion_title.setStyleSheet("color: #90EE90; margin-bottom: 5px;")
+        emotion_layout.addWidget(emotion_title)
+        
+        # Current emotion display
+        self.emotion_status_label = QLabel('😶 Neutral | Analyzing your state...')
+        self.emotion_status_label.setFont(QFont('Segoe UI', 10))
+        self.emotion_status_label.setStyleSheet("color: #CCC; margin-bottom: 5px;")
+        emotion_layout.addWidget(self.emotion_status_label)
+        
+        # Emotion actions display
+        self.emotion_actions_label = QLabel('💡 No active recommendations')
+        self.emotion_actions_label.setFont(QFont('Segoe UI', 9))
+        self.emotion_actions_label.setStyleSheet("color: #888; font-style: italic;")
+        self.emotion_actions_label.setWordWrap(True)
+        emotion_layout.addWidget(self.emotion_actions_label)
+        
+        emotion_frame.setLayout(emotion_layout)
+        main_layout.addWidget(emotion_frame)
+
         # --- MIDDLE SECTION: DEMO ---
         demo_layout = QHBoxLayout()
         demo_layout.setContentsMargins(20,10,20,10)

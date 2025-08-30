@@ -12,6 +12,16 @@ from PyQt6.QtCore import Qt, QTimer, QUrl
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from ui_main_window import UiMainWindow
 
+# Import emotion detection system
+try:
+    from emotion_detection import EmotionDetector
+    from emotion_action_system import EmotionActionSystem
+    EMOTION_DETECTION_AVAILABLE = True
+    print("🧠 Emotion Detection System loaded successfully!")
+except ImportError as e:
+    print(f"⚠️ Emotion Detection System not available: {e}")
+    EMOTION_DETECTION_AVAILABLE = False
+
 def resource_path(relative_path):
     try:
         base_path = sys._MEIPASS
@@ -66,6 +76,32 @@ class AppLogic(QWidget, UiMainWindow):
         except ImportError as e:
             print(f"⚠️ Could not initialize safe gaming enhancer: {e}")
             self.safe_gaming_enhancer = None
+        
+        # --- Emotion Detection System ---
+        self.emotion_detector = None
+        self.emotion_action_system = None
+        
+        if EMOTION_DETECTION_AVAILABLE:
+            try:
+                self.emotion_detector = EmotionDetector()
+                self.emotion_action_system = EmotionActionSystem()
+                self.emotion_action_system.set_controllers(
+                    audio_controller=self,  # Use self as audio controller
+                    ui_controller=self,     # Use self as UI controller
+                    notification_callback=self.show_emotion_notification
+                )
+                print("🧠 Emotion Detection and Action System initialized!")
+            except Exception as e:
+                print(f"⚠️ Emotion system initialization error: {e}")
+                self.emotion_detector = None
+                self.emotion_action_system = None
+        
+        # --- Emotion State Variables ---
+        self.current_emotion = "neutral"
+        self.emotion_confidence = 0.0
+        self.emotion_duration = 0.0
+        self.last_emotion_analysis = time.time()
+        self.emotion_analysis_interval = 1.0  # Analyze emotions every second
         
         # --- Head Pose Tracking Variables ---
         self.pose_history = []
@@ -808,6 +844,8 @@ class AppLogic(QWidget, UiMainWindow):
                 # Enhanced head pose estimation
                 pose_data, confidence = self.calculate_head_pose(shape, image_size)
                 
+                # Initialize pose variables
+                yaw, pitch, roll = 0, 0, 0
                 if pose_data and confidence > 0.3:  # Only use poses with reasonable confidence
                     # Apply temporal smoothing
                     smoothed_pose = self.smooth_pose_estimation(pose_data)
@@ -816,73 +854,107 @@ class AppLogic(QWidget, UiMainWindow):
                         yaw = smoothed_pose['yaw']
                         pitch = smoothed_pose['pitch']
                         roll = smoothed_pose['roll']
-                        
-                        # Enhanced focus condition with hybrid detection
-                        ear_threshold = self.threshold_slider.value() / 100.0
-                        ear_consec_frames = self.sensitivity_slider.value()
-                        
-                        # Get screen activity score
-                        activity_score = self.get_screen_activity_score()
-                        
-                        # More lenient angle requirements for better multi-monitor support
-                        is_looking_forward = (
-                            abs(yaw) < 45 and      # Increased from 25° to 45° for side monitors
-                            abs(pitch) < 30 and    # Increased from 20° to 30° for better tolerance
-                            abs(roll) < 25         # Increased from 15° to 25° for head tilt tolerance
-                        )
-                        
-                        is_eyes_open = ear > ear_threshold
-                        has_good_confidence = confidence > 0.3  # Reduced from 0.5 to 0.3 for more sensitive detection
-                        
-                        # Progressive confidence scaling - lower thresholds for off-angle detection
-                        if abs(yaw) > 25:  # Off-angle detection
-                            has_good_confidence = confidence > 0.2  # Even more lenient for off-angle
-                        
-                        # Use hybrid focus scoring
-                        hybrid_score = self.get_hybrid_focus_score(
-                            face_detected=True,
-                            pose_valid=is_looking_forward,
-                            confidence=confidence,
-                            ear_valid=is_eyes_open,
-                            activity_score=activity_score
-                        )
-                        
-                        # Apply sensitivity slider to hybrid score threshold
-                        # Lower sensitivity = higher threshold needed
-                        # Higher sensitivity = lower threshold needed
-                        sensitivity_factor = (self.sensitivity_slider.value() / 30.0)  # 0.033 to 1.0
-                        focus_threshold = 0.7 - (sensitivity_factor * 0.3)  # 0.4 to 0.7 threshold range
-                        
-                        # Update info display with comprehensive information
-                        confidence_status = "✓" if has_good_confidence else "✗"
-                        angle_status = "✓" if is_looking_forward else "✗"
-                        eye_status = "✓" if is_eyes_open else "✗"
-                        activity_status = f"{activity_score:.1f}"
-                        
-                        self.info_label.setText(
-                            f"Y{yaw:.0f}°P{pitch:.0f}°R{roll:.0f}° | "
-                            f"C{confidence:.2f}{confidence_status} | A{angle_status} | E{eye_status} | "
-                            f"Act:{activity_status} | Focus:{hybrid_score:.2f}/{focus_threshold:.2f}"
-                        )
-                        
-                        # Enhanced focus logic with hybrid scoring
-                        if hybrid_score > focus_threshold:
-                            self.focus_counter += 1
-                            if self.focus_counter >= max(1, ear_consec_frames // 2):  # Faster activation
-                                self.set_aura_status(True)
-                        else:
-                            self.focus_counter = max(0, self.focus_counter - 1)  # Gradual decay
-                            if self.focus_counter <= 0:
-                                self.set_aura_status(False)
-                        
-                        # Apply gaming audio enhancements if in gaming mode
-                        if self.gaming_mode_active:
-                            self.apply_gaming_audio_enhancements()
-                        
-                        # Visualize pose estimation on frame
-                        self.draw_pose_visualization(frame, shape, smoothed_pose)
+                
+                # --- EMOTION DETECTION ANALYSIS ---
+                current_time = time.time()
+                if (self.emotion_detector and 
+                    current_time - self.last_emotion_analysis > self.emotion_analysis_interval):
+                    
+                    # Analyze facial expressions for emotions
+                    self.emotion_detector.analyze_facial_expression(shape, frame)
+                    
+                    # Get current system activity data for behavioral analysis
+                    activity_data = self.get_current_activity_data()
+                    
+                    # Analyze behavioral patterns (now yaw, pitch, roll are defined)
+                    pose_data_for_emotion = [yaw, pitch, roll]
+                    self.emotion_detector.analyze_behavioral_patterns(pose_data_for_emotion, activity_data)
+                    
+                    # Update multi-monitor behavior metrics
+                    system_data = self.get_system_behavior_data()
+                    self.emotion_detector.update_multi_monitor_metrics(system_data)
+                    
+                    # Detect current emotional state
+                    self.emotion_detector.detect_emotion_state()
+                    
+                    # Get emotion summary
+                    emotion_summary = self.emotion_detector.get_emotion_summary()
+                    
+                    # Update UI with emotion information
+                    self.update_emotion_display(emotion_summary)
+                    
+                    # Process emotions through action system
+                    if self.emotion_action_system:
+                        self.emotion_action_system.process_emotion_state(emotion_summary)
+                    
+                    self.last_emotion_analysis = current_time
+                
+                # Continue with rest of the processing
+                if pose_data and confidence > 0.3:
+                    # Enhanced focus condition with hybrid detection
+                    ear_threshold = self.threshold_slider.value() / 100.0
+                    ear_consec_frames = self.sensitivity_slider.value()
+                    
+                    # Get screen activity score
+                    activity_score = self.get_screen_activity_score()
+                    
+                    # More lenient angle requirements for better multi-monitor support
+                    is_looking_forward = (
+                        abs(yaw) < 45 and      # Increased from 25° to 45° for side monitors
+                        abs(pitch) < 30 and    # Increased from 20° to 30° for better tolerance
+                        abs(roll) < 25         # Increased from 15° to 25° for head tilt tolerance
+                    )
+                    
+                    is_eyes_open = ear > ear_threshold
+                    has_good_confidence = confidence > 0.3  # Reduced from 0.5 to 0.3 for more sensitive detection
+                    
+                    # Progressive confidence scaling - lower thresholds for off-angle detection
+                    if abs(yaw) > 25:  # Off-angle detection
+                        has_good_confidence = confidence > 0.2  # Even more lenient for off-angle
+                    
+                    # Use hybrid focus scoring
+                    hybrid_score = self.get_hybrid_focus_score(
+                        face_detected=True,
+                        pose_valid=is_looking_forward,
+                        confidence=confidence,
+                        ear_valid=is_eyes_open,
+                        activity_score=activity_score
+                    )
+                    
+                    # Apply sensitivity slider to hybrid score threshold
+                    # Lower sensitivity = higher threshold needed
+                    # Higher sensitivity = lower threshold needed
+                    sensitivity_factor = (self.sensitivity_slider.value() / 30.0)  # 0.033 to 1.0
+                    focus_threshold = 0.7 - (sensitivity_factor * 0.3)  # 0.4 to 0.7 threshold range
+                    
+                    # Update info display with comprehensive information
+                    confidence_status = "✓" if has_good_confidence else "✗"
+                    angle_status = "✓" if is_looking_forward else "✗"
+                    eye_status = "✓" if is_eyes_open else "✗"
+                    activity_status = f"{activity_score:.1f}"
+                    
+                    self.info_label.setText(
+                        f"Y{yaw:.0f}°P{pitch:.0f}°R{roll:.0f}° | "
+                        f"C{confidence:.2f}{confidence_status} | A{angle_status} | E{eye_status} | "
+                        f"Act:{activity_status} | Focus:{hybrid_score:.2f}/{focus_threshold:.2f}"
+                    )
+                    
+                    # Enhanced focus logic with hybrid scoring
+                    if hybrid_score > focus_threshold:
+                        self.focus_counter += 1
+                        if self.focus_counter >= max(1, ear_consec_frames // 2):  # Faster activation
+                            self.set_aura_status(True)
                     else:
-                        self.handle_pose_estimation_failure()
+                        self.focus_counter = max(0, self.focus_counter - 1)  # Gradual decay
+                        if self.focus_counter <= 0:
+                            self.set_aura_status(False)
+                    
+                    # Apply gaming audio enhancements if in gaming mode
+                    if self.gaming_mode_active:
+                        self.apply_gaming_audio_enhancements()
+                    
+                    # Visualize pose estimation on frame
+                    self.draw_pose_visualization(frame, shape, smoothed_pose)
                 else:
                     self.handle_pose_estimation_failure()
                     
@@ -1032,6 +1104,223 @@ class AppLogic(QWidget, UiMainWindow):
             self.webcam_feed.setPixmap(QPixmap.fromImage(p))
         except Exception as e:
             print(f"Error displaying frame: {e}")
+
+    # --- EMOTION DETECTION SUPPORT METHODS ---
+    
+    def get_current_activity_data(self):
+        """Get current system activity data for emotion analysis"""
+        try:
+            cpu_usage = psutil.cpu_percent(interval=None)
+            memory_info = psutil.virtual_memory()
+            
+            # Calculate mouse and keyboard activity (simplified)
+            mouse_activity = self.mouse_activity_count
+            keyboard_activity = self.keyboard_activity_count
+            
+            return {
+                'cpu_usage': cpu_usage,
+                'memory_usage': memory_info.percent,
+                'mouse_activity': mouse_activity,
+                'keyboard_activity': keyboard_activity,
+                'timestamp': time.time()
+            }
+        except Exception as e:
+            print(f"Activity data error: {e}")
+            return {}
+
+    def get_system_behavior_data(self):
+        """Get system behavior data for multi-monitor analysis"""
+        try:
+            # Get active window count (simplified)
+            active_windows = 1  # Placeholder - could be enhanced with actual window detection
+            
+            # Get cursor speed (simplified)
+            cursor_speed = self.mouse_activity_count * 0.1
+            
+            # Get keyboard typing rate
+            keyboard_rate = self.keyboard_activity_count * 0.1
+            
+            return {
+                'active_windows': active_windows,
+                'cursor_speed': cursor_speed,
+                'keyboard_rate': keyboard_rate,
+                'timestamp': time.time()
+            }
+        except Exception as e:
+            print(f"System behavior data error: {e}")
+            return {}
+
+    def update_emotion_display(self, emotion_summary):
+        """Update UI with current emotion information"""
+        try:
+            emotion = emotion_summary['current_emotion']
+            confidence = emotion_summary['confidence']
+            duration = emotion_summary['duration']
+            behavioral_indicators = emotion_summary['behavioral_indicators']
+            
+            # Update emotion state
+            self.current_emotion = emotion
+            self.emotion_confidence = confidence
+            self.emotion_duration = duration
+            
+            # Create emotion status with emoji and description
+            emotion_emojis = {
+                'neutral': '😶',
+                'focused': '🎯', 
+                'frustrated': '😤',
+                'exhausted': '😴',
+                'stressed': '😰',
+                'happy': '😊',
+                'confused': '🤔',
+                'concentrated': '🧠',
+                'tired': '😪',
+                'excited': '🤩'
+            }
+            
+            emoji = emotion_emojis.get(emotion, '�')
+            
+            # Create confidence indicator
+            if confidence > 0.7:
+                confidence_indicator = "🔴 High"
+                color_style = "color: #90EE90;"  # Light green
+            elif confidence > 0.5:
+                confidence_indicator = "🟡 Medium" 
+                color_style = "color: #FFD700;"  # Gold
+            elif confidence > 0.3:
+                confidence_indicator = "🟠 Low"
+                color_style = "color: #FFA500;"  # Orange
+            else:
+                confidence_indicator = "⚪ Detecting"
+                color_style = "color: #888;"     # Gray
+            
+            # Update emotion status label
+            emotion_text = f"{emoji} {emotion.title()} | {confidence_indicator} | {duration:.1f}s"
+            if hasattr(self, 'emotion_status_label'):
+                self.emotion_status_label.setText(emotion_text)
+                self.emotion_status_label.setStyleSheet(f"font-size: 11px; {color_style} margin-bottom: 5px;")
+            
+            # Get recommended actions
+            if self.emotion_action_system:
+                recommended_actions = self.emotion_action_system.get_recommended_actions()
+                
+                if recommended_actions:
+                    actions_text = "💡 Active: " + " | ".join(recommended_actions[:2])  # Show first 2 actions
+                    actions_color = "color: #87CEEB;"  # Sky blue
+                else:
+                    actions_text = "✅ Optimal state - No actions needed"
+                    actions_color = "color: #90EE90;"  # Light green
+            else:
+                actions_text = "🔄 Emotion analysis in progress..."
+                actions_color = "color: #888;"
+            
+            # Update emotion actions label
+            if hasattr(self, 'emotion_actions_label'):
+                self.emotion_actions_label.setText(actions_text)
+                self.emotion_actions_label.setStyleSheet(f"font-size: 9px; {actions_color} font-style: italic;")
+            
+            # Add behavioral indicators to existing info label
+            stress_level = behavioral_indicators.get('stress_level', 0)
+            fatigue_level = behavioral_indicators.get('fatigue_level', 0)
+            attention_span = behavioral_indicators.get('attention_span', 0)
+            
+            # Create behavioral summary
+            behavioral_text = f"Stress:{stress_level:.1f} Fatigue:{fatigue_level:.1f} Focus:{attention_span:.1f}"
+            
+            # Add emotion info to main status display
+            current_info = self.info_label.text()
+            
+            # Remove any existing emotion info to avoid duplication
+            if " | 😊" in current_info or " | 😐" in current_info or " | �" in current_info or " | 😤" in current_info:
+                # Find and remove existing emotion info
+                parts = current_info.split(" | ")
+                filtered_parts = [part for part in parts if not any(emote in part for emote in ['😊', '😐', '😶', '😤', '😴', '😰', '🤔', '🎯', '🧠', '😪', '🤩'])]
+                current_info = " | ".join(filtered_parts)
+            
+            # Add new emotion info
+            emotion_info = f" | {emoji} {emotion[:4].title()} | {behavioral_text}"
+            self.info_label.setText(current_info + emotion_info)
+                
+        except Exception as e:
+            print(f"Emotion display error: {e}")
+
+    def show_emotion_notification(self, message):
+        """Show emotion-based notification in the UI"""
+        try:
+            # Update info label with emotion notification
+            print(f"🧠 EMOTION NOTIFICATION: {message}")
+            
+            # Could also update a dedicated emotion status area in the UI
+            # For now, just print to console and potentially update status
+            
+        except Exception as e:
+            print(f"Emotion notification error: {e}")
+
+    # --- AUDIO CONTROLLER METHODS FOR EMOTION ACTIONS ---
+    
+    def reduce_background_intensity(self, factor):
+        """Reduce background audio intensity (for emotion actions)"""
+        try:
+            # Implement audio intensity reduction
+            print(f"🔊 Reducing background audio intensity by {factor}")
+            # This would integrate with the existing audio control system
+        except Exception as e:
+            print(f"Audio intensity reduction error: {e}")
+
+    def apply_stress_relief_profile(self):
+        """Apply stress relief audio profile"""
+        try:
+            print("🎵 Applying stress relief audio profile")
+            # Implement stress-relief audio adjustments
+        except Exception as e:
+            print(f"Stress relief profile error: {e}")
+
+    def enhance_clarity(self):
+        """Enhance audio clarity for confusion reduction"""
+        try:
+            print("🔊 Enhancing audio clarity")
+            # Implement clarity enhancement
+        except Exception as e:
+            print(f"Audio clarity enhancement error: {e}")
+
+    def maximize_focus_profile(self):
+        """Maximize focus audio profile"""
+        try:
+            print("🎯 Maximizing focus audio profile")
+            # Implement focus optimization
+        except Exception as e:
+            print(f"Focus profile error: {e}")
+
+    def enhance_focus_frequencies(self):
+        """Enhance frequencies that improve focus"""
+        try:
+            print("🎵 Enhancing focus frequencies")
+            # Implement focus frequency enhancement
+        except Exception as e:
+            print(f"Focus frequency enhancement error: {e}")
+
+    def apply_competitive_profile(self):
+        """Apply competitive gaming audio profile"""
+        try:
+            print("🎮 Applying competitive gaming profile")
+            # Implement competitive audio enhancements
+        except Exception as e:
+            print(f"Competitive profile error: {e}")
+
+    def enhance_spatial_audio(self):
+        """Enhance spatial audio awareness"""
+        try:
+            print("🎧 Enhancing spatial audio awareness")
+            # Implement spatial audio enhancement
+        except Exception as e:
+            print(f"Spatial audio error: {e}")
+
+    def optimize_response_audio(self):
+        """Optimize audio for faster response times"""
+        try:
+            print("⚡ Optimizing response audio")
+            # Implement response optimization
+        except Exception as e:
+            print(f"Response audio error: {e}")
 
     def closeEvent(self, event):
         """Cleanup when application closes"""
