@@ -9,8 +9,7 @@ a = Analysis(
     datas=[
         ('assets', 'assets'),  # Include assets folder
         ('README.md', '.'),    # Include README for users
-        ('LICENCE', '.'),      # Include license
-        ('ENHANCED_USER_GUIDE.md', '.'),  # Include user guide
+        ('LICENSE', '.'),      # Include license (fixed spelling)
     ],
     hiddenimports=[
         'pkg_resources.py2_warn', 
@@ -30,9 +29,12 @@ a = Analysis(
         'PyQt6.QtCore',
         'PyQt6.QtWidgets',
         'PyQt6.QtGui',
+        'PyQt6.QtMultimedia',
         'app_logic',
         'ui_main_window',
-        'camera_detector',
+        'emotion_detection',
+        'emotion_action_system',
+        'audio_device_manager',
         'safe_gaming_enhancer'
     ],
     hookspath=[],

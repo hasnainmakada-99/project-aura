@@ -12,6 +12,10 @@ class UiMainWindow(object):
         MainWindow.setMinimumSize(1000, 700)  # Minimum responsive size
         MainWindow.resize(1200, 850)  # Default size with more height
         
+        # Create main widget
+        main_widget = QWidget()
+        MainWindow.setCentralWidget(main_widget)
+        
         # Create scroll area for responsive design
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -383,15 +387,18 @@ class UiMainWindow(object):
         # Set up the scroll area
         scroll_area.setWidget(scroll_content)
         
-        # Set the main layout to the widget itself (since AppLogic inherits from QWidget)
-        MainWindow.setLayout(QVBoxLayout())
-        MainWindow.layout().setContentsMargins(0, 0, 0, 0)
-        MainWindow.layout().addWidget(scroll_area)
+        # Create layout for main widget and add scroll area
+        main_widget_layout = QVBoxLayout(main_widget)
+        main_widget_layout.setContentsMargins(0, 0, 0, 0)
+        main_widget_layout.addWidget(scroll_area)
         
         # Apply styling
         MainWindow.setStyleSheet("""
             QWidget {
                 background-color: #2B2B2B;
                 color: white;
+            }
+            QMainWindow {
+                background-color: #2B2B2B;
             }
         """)

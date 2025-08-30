@@ -1,9 +1,29 @@
 # main.py
 import sys
-from PyQt6.QtWidgets import QApplication
+import cv2
+from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtCore import Qt
 from app_logic import AppLogic
-from camera_detector import check_camera_requirements
+
+def check_camera_availability():
+    """Check if any camera is available and return the best camera index"""
+    print("🎥 Checking camera requirements...")
+    
+    # Try to find an available camera (check first 3 camera indices)
+    for camera_index in range(3):
+        cap = cv2.VideoCapture(camera_index)
+        if cap.isOpened():
+            # Test if camera can actually capture frames
+            ret, frame = cap.read()
+            cap.release()
+            if ret:
+                print(f"✅ Found camera {camera_index}: {frame.shape[1]}x{frame.shape[0]} @ 30fps")
+                return camera_index
+        cap.release()
+    
+    # No camera found
+    print("❌ No camera detected")
+    return None
 
 def main():
     # Create QApplication first (required for camera dialogs)
@@ -15,8 +35,7 @@ def main():
     print("🛡️ Anti-cheat safe mode active")
     
     # Check camera requirements BEFORE starting the main app
-    print("\n🎥 Checking camera requirements...")
-    selected_camera = check_camera_requirements()
+    selected_camera = check_camera_availability()
     
     if selected_camera is None:
         print("❌ Cannot start Project AURA without camera access")

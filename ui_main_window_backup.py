@@ -1,16 +1,20 @@
-# ui_main_window_responsive.py - Fully Responsive UI for Project AURA
+# ui_main_window.py
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                             QPushButton, QSlider, QCheckBox, QLineEdit, QFrame, 
-                            QComboBox, QScrollArea, QSizePolicy, QGridLayout)
+                            QComboBox, QScrollArea, QSizePolicy)
 from PyQt6.QtGui import QFont, QPixmap
 from PyQt6.QtCore import Qt
 from PyQt6.QtMultimedia import QMediaPlayer
 
 class UiMainWindow(object):
     def setupUi(self, MainWindow):
-        MainWindow.setWindowTitle('Project AURA - Audio Device Management')
+        MainWindow.setWindowTitle('Project AURA')
         MainWindow.setMinimumSize(1000, 700)  # Minimum responsive size
         MainWindow.resize(1200, 850)  # Default size with more height
+        
+        # Create main widget
+        main_widget = QWidget()
+        MainWindow.setCentralWidget(main_widget)
         
         # Create scroll area for responsive design
         scroll_area = QScrollArea()
@@ -46,51 +50,53 @@ class UiMainWindow(object):
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
 
+        # (The top and middle sections are the same)
         # --- TOP SECTION: STATUS ---
         status_layout = QHBoxLayout()
-        status_layout.setContentsMargins(20, 10, 20, 10)
-
-        self.webcam_feed = QLabel("📹 Camera Feed")
-        self.webcam_feed.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.webcam_feed.setStyleSheet("border: 2px solid #007BFF; background-color: #1a1a1a; color: #90EE90; font-size: 14px; border-radius: 5px;")
+        self.webcam_feed = QLabel('Webcam not found.')
+        self.webcam_feed.setStyleSheet("background-color: #1A1A1A; color: #555; border: 1px solid #444; font-size: 16px; qproperty-alignment: 'AlignCenter';")
         self.webcam_feed.setFixedSize(240, 180)
         status_layout.addWidget(self.webcam_feed)
-
-        status_info_layout = QVBoxLayout()
-        self.status_title = QLabel("STATUS: ACTIVE")
-        self.status_title.setFont(QFont('Segoe UI', 16, QFont.Weight.Bold))
-        self.status_title.setStyleSheet("color: #90EE90; margin-bottom: 10px;")
-        status_info_layout.addWidget(self.status_title)
-
-        self.info_label = QLabel("Y19°P-14°R-3° | C1.00✓ | AY | EY | Act:1.0 | Focus:1.00/0.55")
+        
+        status_text_layout = QVBoxLayout()
+        self.status_label = QLabel('STATUS: INACTIVE')
+        self.status_label.setFont(QFont('Segoe UI', 24, QFont.Weight.Bold))
+        self.status_label.setStyleSheet("color: #FF4757;")
+        self.info_label = QLabel("AURA is running. Adjust sensitivity below.")
         self.info_label.setFont(QFont('Segoe UI', 10))
         self.info_label.setStyleSheet("color: #CCC;")
-        status_info_layout.addWidget(self.info_label)
-
-        self.emotion_frame = QFrame()
-        self.emotion_frame.setStyleSheet("background-color: #3C3C3C; border-radius: 5px; padding: 10px; margin-top: 15px;")
-        emotion_layout = QVBoxLayout(self.emotion_frame)
+        self.info_label.setWordWrap(True)
+        status_text_layout.addWidget(self.status_label)
+        status_text_layout.addWidget(self.info_label)
+        status_layout.addLayout(status_text_layout)
         
-        emotion_header = QLabel("🧠 EMOTION & BEHAVIOR ANALYSIS")
-        emotion_header.setFont(QFont('Segoe UI', 11, QFont.Weight.Bold))
-        emotion_header.setStyleSheet("color: #FF69B4; margin-bottom: 5px;")
-        emotion_layout.addWidget(emotion_header)
-        
-        self.emotion_display = QLabel("😊 Happy | 🔥 High | 18.9s")
-        self.emotion_display.setFont(QFont('Segoe UI', 10))
-        self.emotion_display.setStyleSheet("color: #FFD700; margin-bottom: 5px;")
-        emotion_layout.addWidget(self.emotion_display)
-        
-        self.emotion_actions = QLabel("💡 Active: High restlessness detected. A quick movement break might help. | Attention optimization activated")
-        self.emotion_actions.setFont(QFont('Segoe UI', 9))
-        self.emotion_actions.setStyleSheet("color: #87CEEB;")
-        self.emotion_actions.setWordWrap(True)
-        emotion_layout.addWidget(self.emotion_actions)
-        
-        status_info_layout.addWidget(self.emotion_frame)
-        status_layout.addWidget(QWidget())
-        status_layout.addLayout(status_info_layout)
         main_layout.addLayout(status_layout)
+
+        # --- EMOTION DETECTION SECTION ---
+        emotion_frame = QFrame()
+        emotion_frame.setStyleSheet("background-color: #2A2A2A; border: 1px solid #444; border-radius: 5px; padding: 10px;")
+        emotion_layout = QVBoxLayout()
+        
+        emotion_title = QLabel('🧠 EMOTION & BEHAVIOR ANALYSIS')
+        emotion_title.setFont(QFont('Segoe UI', 12, QFont.Weight.Bold))
+        emotion_title.setStyleSheet("color: #90EE90; margin-bottom: 5px;")
+        emotion_layout.addWidget(emotion_title)
+        
+        # Current emotion display
+        self.emotion_status_label = QLabel('😶 Neutral | Analyzing your state...')
+        self.emotion_status_label.setFont(QFont('Segoe UI', 10))
+        self.emotion_status_label.setStyleSheet("color: #CCC; margin-bottom: 5px;")
+        emotion_layout.addWidget(self.emotion_status_label)
+        
+        # Emotion actions display
+        self.emotion_actions_label = QLabel('💡 No active recommendations')
+        self.emotion_actions_label.setFont(QFont('Segoe UI', 9))
+        self.emotion_actions_label.setStyleSheet("color: #888; font-style: italic;")
+        self.emotion_actions_label.setWordWrap(True)
+        emotion_layout.addWidget(self.emotion_actions_label)
+        
+        emotion_frame.setLayout(emotion_layout)
+        main_layout.addWidget(emotion_frame)
 
         # --- MIDDLE SECTION: DEMO ---
         demo_layout = QHBoxLayout()
@@ -112,37 +118,45 @@ class UiMainWindow(object):
         demo_layout.addWidget(self.aura_toggle)
         main_layout.addLayout(demo_layout)
 
-        # --- AUDIO DEVICE MANAGEMENT SECTION (PROMINENT) ---
+        # --- BOTTOM SECTION: SETTINGS ---
+        line = QFrame()
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
+        line.setStyleSheet("background-color: #444;")
+        main_layout.addWidget(line)
+
+        settings_grid = QVBoxLayout()
+        settings_grid.setContentsMargins(20, 10, 20, 20)
+        
         # FIRST: Audio Device Management Section (Most Important)
         audio_device_frame = QFrame()
         audio_device_frame.setStyleSheet("""
             QFrame {
                 background-color: #1a4f1a;
-                border: 3px solid #90EE90;
-                border-radius: 10px;
-                padding: 15px;
-                margin: 10px;
+                border: 2px solid #90EE90;
+                border-radius: 8px;
+                padding: 10px;
+                margin: 5px;
             }
         """)
         audio_device_layout = QVBoxLayout(audio_device_frame)
-        audio_device_layout.setContentsMargins(20, 20, 20, 20)
+        audio_device_layout.setContentsMargins(15, 15, 15, 15)
         
         # Audio device section header
         audio_device_header = QLabel("🎧 AUDIO DEVICE MANAGEMENT")
-        audio_device_header.setFont(QFont('Segoe UI', 14, QFont.Weight.Bold))
-        audio_device_header.setStyleSheet("color: #90EE90; margin-bottom: 15px; border: none; background: transparent;")
+        audio_device_header.setFont(QFont('Segoe UI', 12, QFont.Weight.Bold))
+        audio_device_header.setStyleSheet("color: #90EE90; margin-bottom: 8px; border: none; background: transparent;")
         audio_device_layout.addWidget(audio_device_header)
         
         # Output device selection
         output_device_layout = QHBoxLayout()
         output_label = QLabel("🔊 Output Device:")
-        output_label.setFont(QFont('Segoe UI', 11))
-        output_label.setStyleSheet("color: #FFF; border: none; background: transparent;")
-        output_label.setFixedWidth(130)
+        output_label.setFont(QFont('Segoe UI', 10))
+        output_label.setStyleSheet("color: #CCC;")
+        output_label.setFixedWidth(120)
         
         self.output_device_selector = QComboBox()
-        self.output_device_selector.setFont(QFont('Segoe UI', 10))
-        self.output_device_selector.setMinimumHeight(35)
+        self.output_device_selector.setFont(QFont('Segoe UI', 9))
         self.output_device_selector.setStyleSheet("""
             QComboBox {
                 color: white;
@@ -150,19 +164,18 @@ class UiMainWindow(object):
                 border: 2px solid #007BFF;
                 border-radius: 5px;
                 padding: 8px;
-                min-width: 250px;
-                font-size: 11px;
+                min-width: 200px;
+                font-size: 10px;
             }
             QComboBox::drop-down {
                 border: none;
                 background-color: #007BFF;
                 border-radius: 3px;
-                width: 25px;
             }
             QComboBox::down-arrow {
                 width: 12px;
                 height: 12px;
-                color: white;
+                image: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAxMiAxMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTMgNEw2IDdMOSA0IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K);
             }
             QComboBox QAbstractItemView {
                 background-color: #2B2B2B;
@@ -172,16 +185,15 @@ class UiMainWindow(object):
             }
         """)
         
-        self.refresh_devices_button = QPushButton("🔄 Refresh Devices")
-        self.refresh_devices_button.setFont(QFont('Segoe UI', 10))
-        self.refresh_devices_button.setMinimumHeight(35)
+        self.refresh_devices_button = QPushButton("🔄 Refresh")
+        self.refresh_devices_button.setFont(QFont('Segoe UI', 9))
+        self.refresh_devices_button.setFixedWidth(80)
         self.refresh_devices_button.setStyleSheet("""
             QPushButton {
                 background-color: #007BFF;
                 color: white;
-                border-radius: 5px;
-                padding: 8px 15px;
-                font-weight: bold;
+                border-radius: 3px;
+                padding: 5px;
             }
             QPushButton:hover {
                 background-color: #0056b3;
@@ -196,41 +208,38 @@ class UiMainWindow(object):
         
         # Device status display
         self.device_status_label = QLabel("📊 Device Status: Scanning for audio devices...")
-        self.device_status_label.setFont(QFont('Segoe UI', 11))
-        self.device_status_label.setStyleSheet("color: #FFF; font-style: italic; margin: 10px 0px; border: none; background: transparent;")
+        self.device_status_label.setFont(QFont('Segoe UI', 10))
+        self.device_status_label.setStyleSheet("color: #FFF; font-style: italic; margin: 5px 0px; border: none; background: transparent;")
         self.device_status_label.setWordWrap(True)
         audio_device_layout.addWidget(self.device_status_label)
         
         # Auto-detect new devices checkbox
         auto_detect_layout = QHBoxLayout()
         self.auto_detect_devices_checkbox = QCheckBox("🔌 Auto-detect new devices (Recommended)")
-        self.auto_detect_devices_checkbox.setFont(QFont('Segoe UI', 11))
-        self.auto_detect_devices_checkbox.setStyleSheet("QCheckBox { color: #90EE90; spacing: 10px; border: none; background: transparent; }")
+        self.auto_detect_devices_checkbox.setFont(QFont('Segoe UI', 10))
+        self.auto_detect_devices_checkbox.setStyleSheet("QCheckBox { color: #90EE90; spacing: 8px; border: none; background: transparent; }")
         self.auto_detect_devices_checkbox.setChecked(True)  # Default enabled
         auto_detect_layout.addWidget(self.auto_detect_devices_checkbox)
         auto_detect_layout.addStretch()
         audio_device_layout.addLayout(auto_detect_layout)
         
-        # Add audio device frame to main layout (HIGH PRIORITY)
-        main_layout.addWidget(audio_device_frame)
-
-        # --- SETTINGS SECTION ---
-        line = QFrame()
-        line.setFrameShape(QFrame.Shape.HLine)
-        line.setFrameShadow(QFrame.Shadow.Sunken)
-        line.setStyleSheet("background-color: #444;")
-        main_layout.addWidget(line)
-
-        settings_grid = QVBoxLayout()
-        settings_grid.setContentsMargins(20, 10, 20, 20)
+        # Add audio device frame to settings (HIGH PRIORITY)
+        settings_grid.addWidget(audio_device_frame)
+        
+        # Add a separator
+        audio_separator = QFrame()
+        audio_separator.setFrameShape(QFrame.Shape.HLine)
+        audio_separator.setFrameShadow(QFrame.Shadow.Sunken)
+        audio_separator.setStyleSheet("background-color: #555; margin: 10px 0px;")
+        settings_grid.addWidget(audio_separator)
         
         # Row 1 & 2: Enhanced Sliders with better labels
         slider_frame = QFrame()
         slider_frame.setStyleSheet("""
             QFrame {
                 background-color: #353535;
-                border-radius: 8px;
-                padding: 15px;
+                border-radius: 5px;
+                padding: 10px;
                 margin: 5px;
             }
         """)
@@ -254,57 +263,38 @@ class UiMainWindow(object):
         self.sensitivity_label.setFont(QFont('Segoe UI', 10))
         self.sensitivity_label.setStyleSheet("color: #CCC; border: none; background: transparent;")
         self.sensitivity_slider = QSlider(Qt.Orientation.Horizontal)
-        self.sensitivity_slider.setRange(5, 30)
+        self.sensitivity_slider.setRange(1, 30)
         self.sensitivity_slider.setValue(15)
-        self.sensitivity_slider.setMinimumWidth(200)
+        self.sensitivity_slider.setFixedWidth(200)
         sensitivity_layout.addWidget(self.sensitivity_label)
         sensitivity_layout.addWidget(self.sensitivity_slider)
         sensitivity_layout.addStretch()
-        slider_layout.addLayout(sensitivity_layout)
-        
-        settings_grid.addWidget(slider_frame)
+        settings_grid.addLayout(sensitivity_layout)
 
-        # ANTI-CHEAT INFO
-        anticheat_frame = QFrame()
-        anticheat_frame.setStyleSheet("""
-            QFrame {
-                background-color: #1a3d1a;
-                border: 1px solid #90EE90;
-                border-radius: 5px;
-                padding: 10px;
-                margin: 5px;
+        # NEW: Row 3 for Gaming Mode Controls (ANTI-CHEAT SAFE)
+        
+        # Anti-cheat safety warning
+        safety_warning = QLabel("🛡️ ANTI-CHEAT SAFE MODE - Compatible with Vanguard/VAC")
+        safety_warning.setFont(QFont('Segoe UI', 9, QFont.Weight.Bold))
+        safety_warning.setStyleSheet("""
+            QLabel {
+                background-color: #2d5a27;
+                color: #90EE90;
+                padding: 6px;
+                border-radius: 4px;
+                margin-bottom: 5px;
             }
         """)
-        anticheat_layout = QVBoxLayout(anticheat_frame)
-        anticheat_label = QLabel("🛡️ ANTI-CHEAT SAFE MODE - Compatible with Vanguard/VAC")
-        anticheat_label.setFont(QFont('Segoe UI', 11, QFont.Weight.Bold))
-        anticheat_label.setStyleSheet("color: #90EE90; border: none; background: transparent;")
-        anticheat_layout.addWidget(anticheat_label)
-        settings_grid.addWidget(anticheat_frame)
-
-        # Row 3: Gaming Mode
-        gaming_frame = QFrame()
-        gaming_frame.setStyleSheet("""
-            QFrame {
-                background-color: #353535;
-                border-radius: 5px;
-                padding: 10px;
-                margin: 5px;
-            }
-        """)
-        gaming_layout = QVBoxLayout(gaming_frame)
+        settings_grid.addWidget(safety_warning)
         
-        gaming_checkbox_layout = QHBoxLayout()
+        gaming_layout = QHBoxLayout()
         self.gaming_mode_checkbox = QCheckBox("🎮 Gaming Focus Mode (Safe)")
-        self.gaming_mode_checkbox.setFont(QFont('Segoe UI', 10))
-        self.gaming_mode_checkbox.setStyleSheet("QCheckBox { color: #90EE90; spacing: 10px; border: none; background: transparent; }")
-        gaming_checkbox_layout.addWidget(self.gaming_mode_checkbox)
-        gaming_checkbox_layout.addStretch()
+        self.gaming_mode_checkbox.setFont(QFont('Segoe UI', 10, QFont.Weight.Bold))
+        self.gaming_mode_checkbox.setStyleSheet("QCheckBox { color: #90EE90; spacing: 10px; }")
+        self.gaming_mode_checkbox.setToolTip("🛡️ 100% Anti-cheat safe!\nFocus-based background volume control only.")
+        gaming_layout.addWidget(self.gaming_mode_checkbox)
         
-        game_selector_layout = QHBoxLayout()
-        game_label = QLabel("Game Profile:")
-        game_label.setFont(QFont('Segoe UI', 10))
-        game_label.setStyleSheet("color: #CCC; border: none; background: transparent;")
+        # Game selection dropdown
         self.game_selector = QComboBox()
         self.game_selector.addItems(["Valorant", "CS2", "Apex Legends", "General FPS"])
         self.game_selector.setFont(QFont('Segoe UI', 9))
@@ -325,15 +315,11 @@ class UiMainWindow(object):
                 height: 12px;
             }
         """)
-        game_selector_layout.addWidget(game_label)
-        game_selector_layout.addWidget(self.game_selector)
-        game_selector_layout.addStretch()
-        
-        gaming_layout.addLayout(gaming_checkbox_layout)
-        gaming_layout.addLayout(game_selector_layout)
-        settings_grid.addWidget(gaming_frame)
+        gaming_layout.addWidget(self.game_selector)
+        gaming_layout.addStretch()
+        settings_grid.addLayout(gaming_layout)
 
-        # Row 4: Multi-Monitor Mode
+        # NEW: Row 4 for Multi-Monitor Mode
         multimonitor_layout = QHBoxLayout()
         self.multimonitor_checkbox = QCheckBox("Multi-Monitor Mode (Use screen activity when face not detected)")
         self.multimonitor_checkbox.setFont(QFont('Segoe UI', 10))
@@ -343,21 +329,11 @@ class UiMainWindow(object):
         multimonitor_layout.addStretch()
         settings_grid.addLayout(multimonitor_layout)
 
-        # Row 5: Mute List
-        mute_frame = QFrame()
-        mute_frame.setStyleSheet("""
-            QFrame {
-                background-color: #353535;
-                border-radius: 5px;
-                padding: 10px;
-                margin: 5px;
-            }
-        """)
-        mute_layout = QVBoxLayout(mute_frame)
-        
+        # NEW: Row 5 for Mute List with improved styling
+        mute_list_layout = QHBoxLayout()
         mute_label = QLabel("Apps to Control (e.g., spotify.exe,discord.exe,chrome.exe):")
         mute_label.setFont(QFont('Segoe UI', 10))
-        mute_label.setStyleSheet("color: #CCC; border: none; background: transparent;")
+        mute_label.setStyleSheet("color: #CCC;")
         self.mute_list_input = QLineEdit()
         self.mute_list_input.setFont(QFont('Segoe UI', 10))
         self.mute_list_input.setStyleSheet("""
@@ -373,25 +349,29 @@ class UiMainWindow(object):
             }
         """)
         self.mute_list_input.setPlaceholderText("Enter application names separated by commas...")
+        # Set default apps that are commonly running (gaming-focused)
         self.mute_list_input.setText("spotify.exe,discord.exe,chrome.exe,firefox.exe,vlc.exe,obs64.exe")
-        mute_layout.addWidget(mute_label)
-        mute_layout.addWidget(self.mute_list_input)
-        settings_grid.addWidget(mute_frame)
+        mute_list_layout.addWidget(mute_label)
+        mute_list_layout.addWidget(self.mute_list_input)
+        settings_grid.addLayout(mute_list_layout)
 
         main_layout.addLayout(settings_grid)
 
         # Set up the scroll area
         scroll_area.setWidget(scroll_content)
         
-        # Set the main layout to the widget itself (since AppLogic inherits from QWidget)
-        MainWindow.setLayout(QVBoxLayout())
-        MainWindow.layout().setContentsMargins(0, 0, 0, 0)
-        MainWindow.layout().addWidget(scroll_area)
+        # Create layout for main widget and add scroll area
+        main_widget_layout = QVBoxLayout(main_widget)
+        main_widget_layout.setContentsMargins(0, 0, 0, 0)
+        main_widget_layout.addWidget(scroll_area)
         
         # Apply styling
         MainWindow.setStyleSheet("""
             QWidget {
                 background-color: #2B2B2B;
                 color: white;
+            }
+            QMainWindow {
+                background-color: #2B2B2B;
             }
         """)

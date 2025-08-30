@@ -22,6 +22,15 @@ except ImportError as e:
     print(f"⚠️ Emotion Detection System not available: {e}")
     EMOTION_DETECTION_AVAILABLE = False
 
+# Import audio device manager
+try:
+    from audio_device_manager import AudioDeviceManager, get_audio_device_manager
+    AUDIO_DEVICE_MANAGER_AVAILABLE = True
+    print("🎧 Audio Device Manager loaded successfully!")
+except ImportError as e:
+    print(f"⚠️ Audio Device Manager not available: {e}")
+    AUDIO_DEVICE_MANAGER_AVAILABLE = False
+
 def resource_path(relative_path):
     try:
         base_path = sys._MEIPASS
@@ -54,6 +63,17 @@ class AppLogic(QWidget, UiMainWindow):
         self.mouse_activity_count = 0
         self.activity_window = 10.0  # seconds
         self.activity_threshold = 5  # minimum activities per window
+        
+        # --- Audio Device Management ---
+        self.audio_device_manager = None
+        self.selected_output_device = None
+        self.device_monitor_timer = None
+        
+        if AUDIO_DEVICE_MANAGER_AVAILABLE:
+            self.audio_device_manager = get_audio_device_manager()
+            print("🎧 Audio Device Manager initialized!")
+        else:
+            print("⚠️ Audio Device Manager not available - device selection disabled")
         
         # --- Gaming Audio Intelligence ---
         # ANTI-CHEAT SAFE MODE: Disabled for competitive gaming safety
@@ -192,6 +212,22 @@ class AppLogic(QWidget, UiMainWindow):
         self.sensitivity_slider.valueChanged.connect(self.update_sensitivity_label)
         self.gaming_mode_checkbox.toggled.connect(self.toggle_gaming_mode)
         self.game_selector.currentTextChanged.connect(self.change_game_profile)
+        
+        # --- Connect Audio Device Signals ---
+        if hasattr(self, 'refresh_devices_button'):
+            self.refresh_devices_button.clicked.connect(self.refresh_audio_devices)
+        if hasattr(self, 'output_device_selector'):
+            self.output_device_selector.currentTextChanged.connect(self.on_audio_device_changed)
+        if hasattr(self, 'auto_detect_devices_checkbox'):
+            self.auto_detect_devices_checkbox.toggled.connect(self.toggle_auto_device_detection)
+        
+        # --- Initialize Audio Device Management ---
+        self.setup_audio_device_controls()
+        self.refresh_audio_devices()  # Initial device scan
+        
+        # Setup device monitoring timer
+        if self.audio_device_manager and hasattr(self, 'auto_detect_devices_checkbox') and self.auto_detect_devices_checkbox.isChecked():
+            self.start_device_monitoring()
         
         # Update camera status in UI
         self.update_camera_status()
@@ -620,8 +656,10 @@ class AppLogic(QWidget, UiMainWindow):
             # Store current enhancement level for reference
             self.current_safe_enhancement = enhancement_level
             
-            # Update any additional UI elements if needed
-            print(f"🛡️ Safe Enhancement: {status_message}")
+            # Only log when enhancement level changes to reduce spam
+            if not hasattr(self, '_last_enhancement_level') or self._last_enhancement_level != enhancement_level:
+                print(f"🛡️ Safe Enhancement: {status_message}")
+                self._last_enhancement_level = enhancement_level
             
         except Exception as e:
             print(f"Error updating safe gaming status: {e}")
@@ -634,19 +672,59 @@ class AppLogic(QWidget, UiMainWindow):
         except Exception as e:
             print(f"Error updating gaming volume info: {e}")
 
-    def manual_aura_toggle(self, checked): pass
+    def manual_aura_toggle(self, checked):
+        """Handle manual AURA toggle from UI"""
+        try:
+            print(f"🎮 Manual AURA toggle: {'ON' if checked else 'OFF'}")
+            
+            if checked:
+                # AURA turned ON
+                self.is_focused = True
+                if hasattr(self, 'status_title'):
+                    self.status_title.setText('STATUS: ACTIVE')
+                    self.status_title.setStyleSheet("color: #90EE90; font-size: 16px; font-weight: bold;")
+                self.gradually_set_volume(0.2)
+                print("✅ AURA Focus Mode Activated")
+                
+                # Start safe gaming enhancement if available
+                if hasattr(self, 'safe_gaming_enhancer') and self.safe_gaming_enhancer:
+                    self.safe_gaming_enhancer.start_safe_enhancement()
+                    
+            else:
+                # AURA turned OFF
+                self.is_focused = False
+                if hasattr(self, 'status_title'):
+                    self.status_title.setText('STATUS: INACTIVE')
+                    self.status_title.setStyleSheet("color: #FF4757; font-size: 16px; font-weight: bold;")
+                self.gradually_set_volume(1.0)
+                print("❌ AURA Focus Mode Deactivated")
+                
+                # Stop safe gaming enhancement if available
+                if hasattr(self, 'safe_gaming_enhancer') and self.safe_gaming_enhancer:
+                    self.safe_gaming_enhancer.stop_safe_enhancement()
+                    
+        except Exception as e:
+            print(f"❌ Error in manual AURA toggle: {e}")
 
     def set_aura_status(self, is_active):
         if is_active != self.is_focused:
             self.is_focused = is_active
             if is_active:
-                self.status_label.setText('STATUS: ACTIVE')
-                self.status_label.setStyleSheet("color: #2ecc71;")
+                if hasattr(self, 'status_title'):
+                    self.status_title.setText('STATUS: ACTIVE')
+                    self.status_title.setStyleSheet("color: #2ecc71;")
+                elif hasattr(self, 'status_label'):  # Fallback for old UI
+                    self.status_label.setText('STATUS: ACTIVE')
+                    self.status_label.setStyleSheet("color: #2ecc71;")
                 if not self.aura_toggle.isChecked(): self.aura_toggle.setChecked(True)
                 self.gradually_set_volume(0.2)
             else:
-                self.status_label.setText('STATUS: INACTIVE')
-                self.status_label.setStyleSheet("color: #FF4757;")
+                if hasattr(self, 'status_title'):
+                    self.status_title.setText('STATUS: INACTIVE')
+                    self.status_title.setStyleSheet("color: #FF4757;")
+                elif hasattr(self, 'status_label'):  # Fallback for old UI
+                    self.status_label.setText('STATUS: INACTIVE')
+                    self.status_label.setStyleSheet("color: #FF4757;")
                 if self.aura_toggle.isChecked(): self.aura_toggle.setChecked(False)
                 self.gradually_set_volume(1.0)
 
@@ -734,10 +812,47 @@ class AppLogic(QWidget, UiMainWindow):
                     if session.Process and session.Process.name():
                         available_processes.append(session.Process.name().lower())
                 self.update_volume_info(f"No matches. Available: {', '.join(available_processes[:3])}...")
+            
+            # Also control selected audio device if available
+            if self.selected_output_device and self.audio_device_manager:
+                try:
+                    success = self.audio_device_manager.control_device_volume(
+                        self.selected_output_device.id, level
+                    )
+                    if success:
+                        current_info = self.info_label.text()
+                        device_name = self.selected_output_device.name[:20] + "..." if len(self.selected_output_device.name) > 20 else self.selected_output_device.name
+                        self.update_volume_info(f"{current_info} | Device: {device_name}")
+                except Exception as device_error:
+                    print(f"Error controlling selected device volume: {device_error}")
                 
         except Exception as e:
             print(f"ERROR in set_system_volume: {e}")
             self.update_volume_info(f"Volume error: {str(e)}")
+
+    def control_selected_device_volume(self, level):
+        """Control volume specifically for the selected audio device"""
+        try:
+            if not self.selected_output_device or not self.audio_device_manager:
+                return False
+            
+            # Clamp volume level
+            clamped_level = max(0.0, min(1.0, level))
+            
+            success = self.audio_device_manager.control_device_volume(
+                self.selected_output_device.id, clamped_level
+            )
+            
+            if success:
+                print(f"🔊 Controlled {self.selected_output_device.name}: {clamped_level:.2f}")
+                return True
+            else:
+                print(f"❌ Failed to control {self.selected_output_device.name}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Error controlling selected device volume: {e}")
+            return False
 
     def update_volume_info(self, message):
         """Update the info label with volume control information"""
@@ -1193,9 +1308,12 @@ class AppLogic(QWidget, UiMainWindow):
                 confidence_indicator = "⚪ Detecting"
                 color_style = "color: #888;"     # Gray
             
-            # Update emotion status label
+            # Update emotion status label (using new UI element names)
             emotion_text = f"{emoji} {emotion.title()} | {confidence_indicator} | {duration:.1f}s"
-            if hasattr(self, 'emotion_status_label'):
+            if hasattr(self, 'emotion_display'):
+                self.emotion_display.setText(emotion_text)
+                self.emotion_display.setStyleSheet(f"font-size: 11px; {color_style} margin-bottom: 5px;")
+            elif hasattr(self, 'emotion_status_label'):  # Fallback for old UI
                 self.emotion_status_label.setText(emotion_text)
                 self.emotion_status_label.setStyleSheet(f"font-size: 11px; {color_style} margin-bottom: 5px;")
             
@@ -1213,8 +1331,11 @@ class AppLogic(QWidget, UiMainWindow):
                 actions_text = "🔄 Emotion analysis in progress..."
                 actions_color = "color: #888;"
             
-            # Update emotion actions label
-            if hasattr(self, 'emotion_actions_label'):
+            # Update emotion actions label (using new UI element names)
+            if hasattr(self, 'emotion_actions'):
+                self.emotion_actions.setText(actions_text)
+                self.emotion_actions.setStyleSheet(f"font-size: 9px; {actions_color} font-style: italic;")
+            elif hasattr(self, 'emotion_actions_label'):  # Fallback for old UI
                 self.emotion_actions_label.setText(actions_text)
                 self.emotion_actions_label.setStyleSheet(f"font-size: 9px; {actions_color} font-style: italic;")
             
@@ -1322,9 +1443,242 @@ class AppLogic(QWidget, UiMainWindow):
         except Exception as e:
             print(f"Response audio error: {e}")
 
+    # === AUDIO DEVICE MANAGEMENT METHODS ===
+    
+    def setup_audio_device_controls(self):
+        """Initialize audio device control UI"""
+        try:
+            if not self.audio_device_manager:
+                if hasattr(self, 'device_status_label'):
+                    self.device_status_label.setText("❌ Audio device management not available")
+                if hasattr(self, 'output_device_selector'):
+                    self.output_device_selector.setEnabled(False)
+                if hasattr(self, 'refresh_devices_button'):
+                    self.refresh_devices_button.setEnabled(False)
+                return
+            
+            if hasattr(self, 'device_status_label'):
+                self.device_status_label.setText("🎧 Audio device manager ready")
+            print("🎧 Audio device controls initialized")
+            
+        except Exception as e:
+            print(f"Error setting up audio device controls: {e}")
+            if hasattr(self, 'device_status_label'):
+                self.device_status_label.setText(f"❌ Setup error: {str(e)}")
+    
+    def refresh_audio_devices(self):
+        """Refresh and update the audio device list"""
+        try:
+            if not self.audio_device_manager:
+                return
+            
+            print("🔄 Refreshing audio devices...")
+            if hasattr(self, 'device_status_label'):
+                self.device_status_label.setText("🔄 Scanning for audio devices...")
+            
+            # Clear current items
+            if hasattr(self, 'output_device_selector'):
+                self.output_device_selector.clear()
+            
+            # Get output devices
+            output_devices = self.audio_device_manager.get_output_devices()
+            
+            if not output_devices:
+                if hasattr(self, 'output_device_selector'):
+                    self.output_device_selector.addItem("❌ No audio devices found")
+                if hasattr(self, 'device_status_label'):
+                    self.device_status_label.setText("❌ No audio output devices detected")
+                return
+            
+            # Add devices to selector
+            default_index = 0
+            if hasattr(self, 'output_device_selector'):
+                for i, device in enumerate(output_devices):
+                    # Create display text with status indicators
+                    status_icon = "🔊" if device.is_active else "🔇"
+                    default_text = " (Default)" if device.is_default else ""
+                    display_text = f"{status_icon} {device.name}{default_text}"
+                    
+                    self.output_device_selector.addItem(display_text)
+                    
+                    # Set data for easy retrieval
+                    self.output_device_selector.setItemData(i, device.id)
+                    
+                    # Remember default device index
+                    if device.is_default:
+                        default_index = i
+                
+                # Select default device
+                self.output_device_selector.setCurrentIndex(default_index)
+            
+            # Update status
+            device_count = len(output_devices)
+            active_count = len([d for d in output_devices if d.is_active])
+            auto_detect_on = hasattr(self, 'auto_detect_devices_checkbox') and self.auto_detect_devices_checkbox.isChecked()
+            
+            if hasattr(self, 'device_status_label'):
+                self.device_status_label.setText(
+                    f"✅ Found {device_count} devices ({active_count} active) | "
+                    f"🔌 Auto-detect: {'ON' if auto_detect_on else 'OFF'}"
+                )
+            
+            print(f"🎧 Refreshed {device_count} audio devices")
+            
+            # Also log device info for debugging
+            if output_devices:
+                print("🎧 Available output devices:")
+                for device in output_devices:
+                    print(f"  {device}")
+            
+        except Exception as e:
+            print(f"❌ Error refreshing audio devices: {e}")
+            if hasattr(self, 'device_status_label'):
+                self.device_status_label.setText(f"❌ Refresh error: {str(e)}")
+    
+    def on_audio_device_changed(self, device_text):
+        """Handle audio device selection change"""
+        try:
+            if not self.audio_device_manager or not device_text:
+                return
+            
+            # Get device ID from current selection
+            current_index = self.output_device_selector.currentIndex()
+            if current_index < 0:
+                return
+            
+            device_id = self.output_device_selector.itemData(current_index)
+            if not device_id:
+                return
+            
+            # Find device object
+            output_devices = self.audio_device_manager.get_output_devices()
+            selected_device = None
+            for device in output_devices:
+                if device.id == device_id:
+                    selected_device = device
+                    break
+            
+            if not selected_device:
+                print(f"❌ Could not find device with ID: {device_id}")
+                return
+            
+            # Update selected device
+            self.selected_output_device = selected_device
+            
+            # Update status
+            status_icon = "🔊" if selected_device.is_active else "🔇"
+            self.device_status_label.setText(
+                f"{status_icon} Selected: {selected_device.name} | "
+                f"State: {selected_device.state.title()}"
+            )
+            
+            print(f"🎧 Selected audio device: {selected_device.name}")
+            
+            # If device is not active, warn user
+            if not selected_device.is_active:
+                print(f"⚠️ Warning: Selected device '{selected_device.name}' is not active")
+            
+        except Exception as e:
+            print(f"❌ Error changing audio device: {e}")
+    
+    def toggle_auto_device_detection(self, enabled):
+        """Toggle automatic device detection"""
+        try:
+            if enabled:
+                self.start_device_monitoring()
+                print("🔌 Auto-device detection enabled")
+            else:
+                self.stop_device_monitoring()
+                print("🔌 Auto-device detection disabled")
+            
+            # Update status
+            current_text = self.device_status_label.text()
+            if "Auto-detect:" in current_text:
+                parts = current_text.split(" | Auto-detect:")
+                new_text = f"{parts[0]} | Auto-detect: {'ON' if enabled else 'OFF'}"
+                self.device_status_label.setText(new_text)
+            
+        except Exception as e:
+            print(f"❌ Error toggling auto-device detection: {e}")
+    
+    def start_device_monitoring(self):
+        """Start monitoring for audio device changes"""
+        try:
+            if not self.audio_device_manager:
+                return
+            
+            # Stop existing timer if running
+            self.stop_device_monitoring()
+            
+            # Create and start device monitoring timer
+            self.device_monitor_timer = QTimer()
+            self.device_monitor_timer.timeout.connect(self.check_device_changes)
+            self.device_monitor_timer.start(10000)  # Check every 10 seconds
+            
+            print("🔌 Device monitoring started")
+            
+        except Exception as e:
+            print(f"❌ Error starting device monitoring: {e}")
+    
+    def stop_device_monitoring(self):
+        """Stop monitoring for audio device changes"""
+        try:
+            if self.device_monitor_timer:
+                self.device_monitor_timer.stop()
+                self.device_monitor_timer = None
+                print("🔌 Device monitoring stopped")
+            
+        except Exception as e:
+            print(f"❌ Error stopping device monitoring: {e}")
+    
+    def check_device_changes(self):
+        """Check for audio device changes and update UI"""
+        try:
+            if not self.audio_device_manager:
+                return
+            
+            # Get current device count
+            current_devices = self.audio_device_manager.get_output_devices()
+            current_count = len(current_devices)
+            
+            # Get UI device count
+            ui_count = self.output_device_selector.count()
+            if self.output_device_selector.itemText(0).startswith("❌"):
+                ui_count = 0  # No devices in UI
+            
+            # Check if device count changed
+            if current_count != ui_count:
+                print(f"🔌 Device count changed: {ui_count} → {current_count}")
+                
+                # Find new devices
+                if current_count > ui_count:
+                    new_devices = current_devices[ui_count:]
+                    for device in new_devices:
+                        print(f"🔌 New device detected: {device.name}")
+                    
+                    # Update status with notification
+                    self.device_status_label.setText(
+                        f"🔌 NEW DEVICE DETECTED! Refreshing... (Found {current_count} devices)"
+                    )
+                
+                elif current_count < ui_count:
+                    print(f"🔌 Device disconnected (Count: {current_count})")
+                    self.device_status_label.setText(
+                        f"🔌 Device disconnected! Refreshing... (Found {current_count} devices)"
+                    )
+                
+                # Refresh the device list
+                self.refresh_audio_devices()
+            
+        except Exception as e:
+            print(f"❌ Error checking device changes: {e}")
+
     def closeEvent(self, event):
         """Cleanup when application closes"""
         try:
+            # Stop device monitoring
+            self.stop_device_monitoring()
+            
             # Stop gaming mode if active
             if self.gaming_mode_active:
                 self.stop_gaming_mode()
@@ -1339,6 +1693,8 @@ class AppLogic(QWidget, UiMainWindow):
             # Stop timer
             if hasattr(self, 'timer') and self.timer is not None:
                 self.timer.stop()
+                
+            print("🔧 AURA cleanup completed")
                 
         except Exception as e:
             print(f"Error during cleanup: {e}")
