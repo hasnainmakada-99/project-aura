@@ -123,8 +123,6 @@ jobs:
           
           ## Documentation:
           - README.md - Project overview and features
-          - ENHANCED_USER_GUIDE.md - Detailed usage instructions
-          - SAFE_ENHANCEMENT_SUCCESS.md - Gaming enhancement details
           - LICENCE - Software license information
           
           ## Support:
@@ -236,7 +234,6 @@ jobs:
             ## 📚 **Documentation:**
             The package includes comprehensive documentation:
             - `INSTALLATION_GUIDE.txt` - Quick setup instructions
-            - `ENHANCED_USER_GUIDE.md` - Detailed feature guide
             - `SAFE_ENHANCEMENT_SUCCESS.md` - Gaming enhancement details
             - `BUILD_INFO.md` - Technical build information
             
