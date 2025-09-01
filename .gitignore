@@ -1,0 +1,184 @@
+# =====================================================
+# Project AURA - Git Ignore Configuration
+# =====================================================
+
+# ===== Python Environment & Cache =====
+# Virtual environments
+venv/
+venv_*/
+env/
+ENV/
+.env
+.venv
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ===== PyInstaller Build Artifacts =====
+# Build directories
+build/
+dist/
+*.egg-info/
+
+# PyInstaller spec files (keep main.spec for builds)
+# *.spec
+
+# Build logs and warnings
+*.log
+warn-*.txt
+xref-*.html
+
+# ===== Release Packages =====
+# Generated release packages
+FINAL_RELEASE/
+release/
+*.zip
+ProjectAURA-*.zip
+ProjectAURA-Release-*.zip
+ProjectAURA-FIXED-*.zip
+
+# Build scripts output
+build_and_package.ps1.log
+
+# ===== IDE and Editor Files =====
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# ===== System Files =====
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# ===== Temporary and Test Files =====
+# Test outputs
+test_output/
+temp/
+tmp/
+*.tmp
+
+# Log files
+*.log
+logs/
+
+# ===== Dependencies and Libraries =====
+# Downloaded models and large files
+*.dat
+!assets/shape_predictor_68_face_landmarks.dat
+
+# Large audio/video files (except demo)
+*.mp4
+*.avi
+*.wav
+!assets/demo_sound.mp3
+
+# ===== Documentation Backups =====
+# Backup files
+*.bak
+*.backup
+*~
+*.orig
+
+# Office temp files
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
+# ===== Configuration and Secrets =====
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# API keys and secrets
+secrets.json
+config.json
+.secrets
+
+# ===== Development and Testing =====
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Testing
+.pytest_cache/
+.tox/
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints
+
+# ===== Package Managers =====
+# npm
+node_modules/
+npm-debug.log*
+
+# pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ===== Git-specific =====
+# Git hooks
+.git/hooks/*
+
+# ===== KEEP THESE IMPORTANT FILES =====
+# Core source code (explicitly track these)
+!main.py
+!app_logic.py
+!ui_main_window.py
+!camera_detector.py
+!safe_gaming_enhancer.py
+!game_audio_analyzer.py
+
+# Configuration files
+!main.spec
+!requirements.txt
+!README.md
+!LICENCE
+
+# Documentation (track all .md files)
+!*.md
+
+# Assets folder structure
+!assets/
+!assets/*.png
+!assets/*.mp3
+!assets/*.xml
+
+# GitHub workflows
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
+
+# Build and deployment scripts
+!*.ps1
+!*.bat
+!*.sh
