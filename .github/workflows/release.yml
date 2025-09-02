@@ -1,8 +1,10 @@
 name: Build and Release Project AURA
 
-# Trigger on version tags and manual dispatch
+# Trigger on version tags, main branch pushes and manual dispatch
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
       - '*-build-*'
@@ -21,10 +23,10 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    
+
     permissions:
       contents: write
-      
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,24 +50,14 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          
-          # Install dependencies with Windows-specific optimizations
           pip install --only-binary=all --upgrade pip
-          
-          # Install core dependencies first
           pip install numpy>=1.26.0
           pip install opencv-python>=4.8.0
           pip install PyQt6>=6.5.0
           pip install psutil>=5.9.0
-          
-          # Install dlib with pre-compiled wheel
           pip install dlib>=19.24.0
-          
-          # Install audio dependencies
           pip install pycaw>=20230407
           pip install pywin32>=306
-          
-          # Install build tools
           pip install pyinstaller>=6.0.0
 
       - name: Verify installation
@@ -80,7 +72,7 @@ jobs:
       - name: Build application with PyInstaller
         run: |
           pyinstaller main.spec --clean --noconfirm
-          
+
       - name: Verify build output
         run: |
           if (Test-Path "dist/ProjectAURA/ProjectAURA.exe") {
@@ -92,102 +84,84 @@ jobs:
           }
 
       - name: Create release package
+        shell: powershell
         run: |
-          # Create release directory
-          New-Item -ItemType Directory -Force -Path "release"
-          
+          New-Item -ItemType Directory -Force -Path "release" | Out-Null
+
           # Copy built application
-          Copy-Item -Path "dist/ProjectAURA" -Destination "release/ProjectAURA" -Recurse
-          
-          # Copy documentation
-          Copy-Item -Path "README.md" -Destination "release/"
-          Copy-Item -Path "LICENCE" -Destination "release/"
-          Copy-Item -Path "ENHANCED_USER_GUIDE.md" -Destination "release/"
-          Copy-Item -Path "SAFE_ENHANCEMENT_SUCCESS.md" -Destination "release/"
-          
+          if (Test-Path "dist/ProjectAURA") {
+            Copy-Item -Path "dist/ProjectAURA" -Destination "release/ProjectAURA" -Recurse -Force
+          } else {
+            Write-Error "Build output folder dist/ProjectAURA not found"
+            exit 1
+          }
+
+          # Files to try copying (will skip if missing)
+          $docs = @("README.md","LICENCE","ENHANCED_USER_GUIDE.md","SAFE_ENHANCEMENT_SUCCESS.md")
+          foreach ($f in $docs) {
+            if (Test-Path $f) {
+              Copy-Item -Path $f -Destination "release/" -Force
+              Write-Host "Copied $f"
+            } else {
+              Write-Warning "Skipping missing file: $f"
+            }
+          }
+
           # Create installation instructions
           @"
-          # Project AURA - Installation Instructions
-          
-          ## Quick Start:
+          Project AURA - Installation Instructions
+
+          Quick Start:
           1. Extract this ZIP file to a folder on your computer
           2. Navigate to the ProjectAURA folder
           3. Run ProjectAURA.exe
           4. Allow camera access when prompted
-          5. Enjoy your AI-powered focus and gaming enhancement!
-          
-          ## Requirements:
+
+          Requirements:
           - Windows 10/11 (64-bit)
           - Webcam (required for face detection)
           - Audio devices (for volume control)
-          
-          ## Documentation:
-          - README.md - Project overview and features
-          - ENHANCED_USER_GUIDE.md - Detailed usage instructions
-          - SAFE_ENHANCEMENT_SUCCESS.md - Gaming enhancement details
-          - LICENCE - Software license information
-          
-          ## Support:
-          If you encounter any issues, please visit our GitHub repository:
-          https://github.com/hasnainmakada-99/project-aura
-          
-          ---
-          Built with ❤️ for the gaming and productivity community
+
+          Documentation included in the package if available.
           "@ | Out-File -FilePath "release/INSTALLATION_GUIDE.txt" -Encoding UTF8
 
       - name: Generate build info
+        shell: powershell
         run: |
           $buildDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC"
           $commitHash = git rev-parse --short HEAD
           $commitMessage = git log -1 --pretty=%B
-          
+
           @"
           # Project AURA - Build Information
-          
-          **Build Date:** $buildDate
-          **Commit Hash:** $commitHash
-          **Branch:** ${{ github.ref_name }}
-          **Workflow:** ${{ github.workflow }}
-          **Run Number:** ${{ github.run_number }}
-          
-          **Latest Commit:**
+
+          Build Date: $buildDate
+          Commit Hash: $commitHash
+          Branch: ${{ github.ref_name }}
+          Workflow: ${{ github.workflow }}
+          Run Number: ${{ github.run_number }}
+
+          Latest Commit:
           $commitMessage
-          
-          **Features Included:**
-          - ✅ Advanced 3D face mapping and pose detection
-          - ✅ Intelligent volume control with multi-app support
-          - ✅ Professional camera detection system
-          - ✅ Safe gaming enhancement (100% anti-cheat compatible)
-          - ✅ AI-powered behavioral learning
-          - ✅ Real-time activity monitoring
-          - ✅ Multi-monitor support
-          - ✅ Professional UI with status indicators
-          
-          **Anti-Cheat Safety:**
-          - ✅ Valorant Vanguard Compatible
-          - ✅ VAC (Steam) Compatible
-          - ✅ EasyAntiCheat Compatible
-          - ✅ BattlEye Compatible
-          - ✅ Tournament Legal
-          
-          ---
-          This build is ready for competitive gaming and professional use!
           "@ | Out-File -FilePath "release/BUILD_INFO.md" -Encoding UTF8
 
       - name: Create ZIP package
+        shell: powershell
         run: |
-          $releaseType = if ("${{ github.event.inputs.release_type }}" -eq "") { "alpha" } else { "${{ github.event.inputs.release_type }}" }
+          # Determine release type (workflow_dispatch input or default to 'alpha' for manual)
+          $releaseType = if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { "${{ github.event.inputs.release_type }}" } else { "alpha" }
+          if ([string]::IsNullOrEmpty($releaseType)) { $releaseType = "alpha" }
           $buildNumber = "${{ github.run_number }}"
           $commitHash = git rev-parse --short HEAD
           $zipName = "ProjectAURA-${releaseType}-build${buildNumber}-${commitHash}"
-          
-          Compress-Archive -Path "release/*" -DestinationPath "${zipName}.zip"
-          
-          # Set environment variables for next steps
-          echo "ZIP_NAME=${zipName}" >> $env:GITHUB_ENV
-          echo "RELEASE_TYPE=${releaseType}" >> $env:GITHUB_ENV
-          echo "BUILD_NUMBER=${buildNumber}" >> $env:GITHUB_ENV
-          echo "COMMIT_HASH=${commitHash}" >> $env:GITHUB_ENV
+
+          Compress-Archive -Path "release/*" -DestinationPath "${zipName}.zip" -Force
+
+          # Export variables to GITHUB_ENV for later steps
+          Add-Content -Path $env:GITHUB_ENV -Value "ZIP_NAME=${zipName}"
+          Add-Content -Path $env:GITHUB_ENV -Value "RELEASE_TYPE=${releaseType}"
+          Add-Content -Path $env:GITHUB_ENV -Value "BUILD_NUMBER=${buildNumber}"
+          Add-Content -Path $env:GITHUB_ENV -Value "COMMIT_HASH=${commitHash}"
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -197,99 +171,6 @@ jobs:
           tag_name: "${{ env.RELEASE_TYPE }}-build-${{ env.BUILD_NUMBER }}"
           generate_release_notes: true
           body: |
-            # 🚀 Project AURA - ${{ env.RELEASE_TYPE }} Release
-            
-            **Build Information:**
-            - **Type:** ${{ env.RELEASE_TYPE }} release
-            - **Build Number:** #${{ env.BUILD_NUMBER }}
-            - **Commit:** ${{ env.COMMIT_HASH }}
-            - **Built:** ${{ github.event.head_commit.timestamp }}
-            
-            ## 🎯 **What's Included:**
-            
-            ### ✅ **Core Features:**
-            - **Advanced 3D Face Mapping** - Precise head pose detection and tracking
-            - **Intelligent Volume Control** - Smart audio management for focus enhancement
-            - **Professional Camera Detection** - Comprehensive camera requirement system
-            - **Multi-Monitor Support** - Works seamlessly across multiple displays
-            
-            ### 🎮 **Gaming Enhancement (100% Safe):**
-            - **Safe Gaming AI** - Competitive advantages without anti-cheat risk
-            - **Behavioral Learning** - Adapts to your gaming patterns
-            - **Dynamic Audio Optimization** - Enhanced clarity during intense moments
-            - **Activity Intelligence** - Detects gaming situations automatically
-            
-            ### 🛡️ **Anti-Cheat Compatibility:**
-            - ✅ **Valorant Vanguard** - Fully compatible
-            - ✅ **Steam VAC** - Fully compatible  
-            - ✅ **EasyAntiCheat** - Fully compatible
-            - ✅ **BattlEye** - Fully compatible
-            - ✅ **Tournament Legal** - Professional competition ready
-            
-            ## 📥 **Installation:**
-            1. Download the ZIP file below
-            2. Extract to your desired location
-            3. Run `ProjectAURA.exe` from the ProjectAURA folder
-            4. Allow camera access when prompted
-            5. Enjoy your AI-powered enhancement experience!
-            
-            ## 📚 **Documentation:**
-            The package includes comprehensive documentation:
-            - `INSTALLATION_GUIDE.txt` - Quick setup instructions
-            - `ENHANCED_USER_GUIDE.md` - Detailed feature guide
-            - `SAFE_ENHANCEMENT_SUCCESS.md` - Gaming enhancement details
-            - `BUILD_INFO.md` - Technical build information
-            
-            ## 🎊 **Ready for:**
-            - 🎮 Competitive gaming (Valorant, CS2, Apex Legends, etc.)
-            - 💼 Professional work environments
-            - 🎥 Content creation and streaming
-            - 📚 Study and focus sessions
-            - 🏆 Tournament and esports competition
-            
-            ---
-            
-            **⚡ This is cutting-edge AI technology that provides real competitive advantages while maintaining 100% safety for all gaming platforms!**
-            
-            Download, extract, and experience the future of focus and gaming enhancement! 🚀✨
-          prerelease: ${{ env.RELEASE_TYPE == 'alpha' || env.RELEASE_TYPE == 'beta' }}
-          
-      - name: Update Latest Release (for main branch)
-        if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: "${{ env.ZIP_NAME }}.zip"
-          name: "Project AURA - Latest Build"
-          tag_name: "latest"
-          body: |
-            # 🔥 Project AURA - Latest Build (Auto-Updated)
-            
-            This is the latest stable build of Project AURA, automatically updated from the main branch.
-            
-            **Auto-Build Info:**
-            - **Build #:** ${{ env.BUILD_NUMBER }}
-            - **Commit:** ${{ env.COMMIT_HASH }}
-            - **Updated:** ${{ github.event.head_commit.timestamp }}
-            
-            For detailed release notes, see the specific build release above.
-            
-            ## 🚀 Quick Start:
-            1. Download ZIP → Extract → Run ProjectAURA.exe
-            2. Allow camera access
-            3. Experience AI-powered focus and gaming enhancement!
-            
-            **🛡️ 100% Anti-Cheat Safe | 🎮 Tournament Legal | ⚡ Competitive Gaming Ready**
-          prerelease: false
-
-  build-info:
-    runs-on: ubuntu-latest
-    needs: build-windows
-    
-    steps:
-      - name: Build Summary
-        run: |
-          echo "🎉 Project AURA build completed successfully!"
-          echo "📦 Windows executable created and packaged"
-          echo "🚀 Release published with comprehensive documentation"
-          echo "🛡️ Anti-cheat safe gaming enhancement included"
-          echo "✨ Ready for competitive gaming and professional use!"
+            Project AURA - ${{ env.RELEASE_TYPE }} Release
+            Build Number: #${{ env.BUILD_NUMBER }}
+            Commit:
